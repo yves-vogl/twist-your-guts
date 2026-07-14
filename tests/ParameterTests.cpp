@@ -51,12 +51,12 @@ namespace
 
 TEST_CASE ("Processor instantiates with the expected parameters", "[processor][parameters]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     auto& apvts = processor.apvts;
 
     SECTION ("plugin name")
     {
-        CHECK (processor.getName() == juce::String ("Twist Your Guts"));
+        CHECK (processor.getName() == juce::String ("Crypta"));
     }
 
     SECTION ("all documented parameter IDs resolve")

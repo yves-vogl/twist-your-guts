@@ -7,13 +7,13 @@
 // juce::dsp::NoiseGate<float> (JUCE 8.0.14,
 // juce_dsp/widgets/juce_NoiseGate.h) so the processor and the test suite
 // share one real-time-safe seam, matching the pattern already established by
-// tyg::Crossover.
+// cryp::Crossover.
 //
 // juce::dsp::NoiseGate's ballistics filters carry their own per-channel
 // state internally (via BallisticsFilter, indexed by the `channel` argument
 // passed to processSample()), so a single instance handles mono/stereo
 // without any extra per-channel bookkeeping here.
-namespace tyg
+namespace cryp
 {
     class NoiseGateStage
     {

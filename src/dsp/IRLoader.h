@@ -35,7 +35,7 @@
 // (e.g. in response to a GUI file-picker or preset load) - it takes
 // ownership of (moves) the supplied buffer, so the caller must not also
 // touch it on the audio thread afterwards.
-namespace tyg
+namespace cryp
 {
     class IRLoader
     {
@@ -44,7 +44,7 @@ namespace tyg
 
         // `initialWetMixProportion01` must be the current irMix value
         // (0..1) *before* prepare() runs the internal DryWetMixer's
-        // reset(): see the same gotcha documented on tyg::Voicing::prepare().
+        // reset(): see the same gotcha documented on cryp::Voicing::prepare().
         void prepare (const juce::dsp::ProcessSpec& spec, float initialWetMixProportion01);
         void reset();
 

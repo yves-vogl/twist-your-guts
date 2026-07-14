@@ -1,6 +1,6 @@
 #include "NoiseGateStage.h"
 
-namespace tyg
+namespace cryp
 {
     void NoiseGateStage::prepare (const juce::dsp::ProcessSpec& spec)
     {

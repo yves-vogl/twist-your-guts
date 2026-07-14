@@ -31,7 +31,7 @@ namespace
     // input signal, measured over the settled (post-transient) tail.
     double measureFlatSumDeviationDb (double probeFrequencyHz)
     {
-        tyg::Crossover crossover;
+        cryp::Crossover crossover;
 
         juce::dsp::ProcessSpec spec;
         spec.sampleRate = testSampleRate;
@@ -107,7 +107,7 @@ TEST_CASE ("LR4 crossover: low+high sum stays flat when the crossover frequency 
     // Same flat-sum property, but checked at a non-default crossover point
     // to guard against a regression that only happens to look flat at the
     // 250 Hz default (e.g. a hardcoded coefficient).
-    tyg::Crossover crossover;
+    cryp::Crossover crossover;
 
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = testSampleRate;
@@ -161,7 +161,7 @@ TEST_CASE ("LR4 crossover: low+high sum stays flat when the crossover frequency 
 
 TEST_CASE ("LR4 crossover: no NaN/Inf across a denormal-range sweep", "[crossover][dsp][robustness]")
 {
-    tyg::Crossover crossover;
+    cryp::Crossover crossover;
 
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = testSampleRate;

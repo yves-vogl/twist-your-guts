@@ -1,6 +1,6 @@
 #include "Crossover.h"
 
-namespace tyg
+namespace cryp
 {
     void Crossover::prepare (const juce::dsp::ProcessSpec& spec)
     {

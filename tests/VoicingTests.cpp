@@ -24,8 +24,8 @@ namespace
         return spec;
     }
 
-    constexpr std::array<tyg::VoicingType, 3> allVoicings {
-        tyg::VoicingType::gnaw, tyg::VoicingType::wool, tyg::VoicingType::razor
+    constexpr std::array<cryp::VoicingType, 3> allVoicings {
+        cryp::VoicingType::gnaw, cryp::VoicingType::wool, cryp::VoicingType::razor
     };
 }
 
@@ -38,7 +38,7 @@ TEST_CASE ("Voicing: 0% blend is a passthrough within a small margin (dry-path D
     // GainProcessingTests.cpp's passthrough test does for the full chain.
     for (const auto voicing : allVoicings)
     {
-        tyg::Voicing voicingUnderTest;
+        cryp::Voicing voicingUnderTest;
         voicingUnderTest.prepare (makeSpec(), 0.0f);
         voicingUnderTest.setVoicing (voicing);
         voicingUnderTest.setDrive (1.0f);
@@ -63,7 +63,7 @@ TEST_CASE ("Voicing: 0% blend is a passthrough within a small margin (dry-path D
 
 TEST_CASE ("Voicing: reports positive, plausible oversampling latency after prepare()", "[voicing][dsp]")
 {
-    tyg::Voicing voicing;
+    cryp::Voicing voicing;
     CHECK (voicing.getLatencySamples() == 0);
 
     voicing.prepare (makeSpec(), 1.0f);
@@ -81,7 +81,7 @@ TEST_CASE ("Voicing: no NaN/Inf and no runaway output at extreme drive for every
     // feedback-loop-style blow-up rather than a strict unity ceiling.
     for (const auto voicingType : allVoicings)
     {
-        tyg::Voicing voicing;
+        cryp::Voicing voicing;
         voicing.prepare (makeSpec(), 1.0f);
         voicing.setVoicing (voicingType);
         voicing.setDrive (1.0f); // maximum drive
@@ -111,13 +111,13 @@ TEST_CASE ("Voicing: higher drive increases harmonic energy for every voicing", 
     // between the low-drive and high-drive outputs is clearly non-zero.
     for (const auto voicingType : allVoicings)
     {
-        tyg::Voicing lowDriveVoicing;
+        cryp::Voicing lowDriveVoicing;
         lowDriveVoicing.prepare (makeSpec(), 1.0f);
         lowDriveVoicing.setVoicing (voicingType);
         lowDriveVoicing.setDrive (0.0f);
         lowDriveVoicing.setTone (0.5f);
 
-        tyg::Voicing highDriveVoicing;
+        cryp::Voicing highDriveVoicing;
         highDriveVoicing.prepare (makeSpec(), 1.0f);
         highDriveVoicing.setVoicing (voicingType);
         highDriveVoicing.setDrive (1.0f);
@@ -146,7 +146,7 @@ TEST_CASE ("Voicing: no NaN/Inf across a denormal-range sweep for every voicing"
 {
     for (const auto voicingType : allVoicings)
     {
-        tyg::Voicing voicing;
+        cryp::Voicing voicing;
         voicing.prepare (makeSpec (2), 1.0f);
         voicing.setVoicing (voicingType);
         voicing.setDrive (1.0f);
@@ -171,7 +171,7 @@ TEST_CASE ("Voicing: no NaN/Inf across a denormal-range sweep for every voicing"
 
 TEST_CASE ("Voicing: switching voicing mid-stream never produces NaN/Inf", "[voicing][dsp][robustness]")
 {
-    tyg::Voicing voicing;
+    cryp::Voicing voicing;
     voicing.prepare (makeSpec (2), 1.0f);
     voicing.setDrive (0.8f);
     voicing.setTone (0.3f);

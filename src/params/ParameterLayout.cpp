@@ -32,7 +32,7 @@ namespace
     }
 }
 
-namespace tyg
+namespace cryp
 {
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     {

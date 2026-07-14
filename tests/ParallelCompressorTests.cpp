@@ -25,7 +25,7 @@ namespace
 
 TEST_CASE ("ParallelCompressor: 0% mix is a bit-exact dry passthrough", "[compressor][dsp]")
 {
-    tyg::ParallelCompressor compressor;
+    cryp::ParallelCompressor compressor;
     compressor.prepare (makeSpec(), 0.0f);
     compressor.setThresholdDb (-30.0f);
     compressor.setRatio (10.0f);
@@ -51,7 +51,7 @@ TEST_CASE ("ParallelCompressor: 0% mix is a bit-exact dry passthrough", "[compre
 
 TEST_CASE ("ParallelCompressor: signal well above threshold is gain-reduced at 100% mix", "[compressor][dsp]")
 {
-    tyg::ParallelCompressor compressor;
+    cryp::ParallelCompressor compressor;
     compressor.prepare (makeSpec(), 1.0f);
     compressor.setThresholdDb (-24.0f);
     compressor.setRatio (8.0f);
@@ -98,7 +98,7 @@ TEST_CASE ("ParallelCompressor: makeup gain raises the wet level as expected at 
     // itself is fully engaged and roughly constant-gain-reduction for a
     // steady tone) two otherwise-identical runs that only differ by a fixed
     // makeup gain should differ by ~ that same amount once settled.
-    tyg::ParallelCompressor unityCompressor;
+    cryp::ParallelCompressor unityCompressor;
     unityCompressor.prepare (makeSpec(), 1.0f);
     unityCompressor.setThresholdDb (-60.0f);
     unityCompressor.setRatio (4.0f);
@@ -106,7 +106,7 @@ TEST_CASE ("ParallelCompressor: makeup gain raises the wet level as expected at 
     unityCompressor.setReleaseMs (50.0f);
     unityCompressor.setMakeupGainDb (0.0f);
 
-    tyg::ParallelCompressor makeupCompressor;
+    cryp::ParallelCompressor makeupCompressor;
     makeupCompressor.prepare (makeSpec(), 1.0f);
     makeupCompressor.setThresholdDb (-60.0f);
     makeupCompressor.setRatio (4.0f);
@@ -144,7 +144,7 @@ TEST_CASE ("ParallelCompressor: makeup gain raises the wet level as expected at 
 
 TEST_CASE ("ParallelCompressor: no NaN/Inf across an extreme-parameter and denormal sweep", "[compressor][dsp][robustness]")
 {
-    tyg::ParallelCompressor compressor;
+    cryp::ParallelCompressor compressor;
     compressor.prepare (makeSpec (2), 1.0f);
     compressor.setThresholdDb (-60.0f);
     compressor.setRatio (20.0f);

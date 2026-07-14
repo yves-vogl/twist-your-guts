@@ -13,7 +13,7 @@ namespace
 
     // Feeds the processor a handful of blocks so the ~20ms gain smoothing
     // ramp has settled to its target value before we measure anything.
-    void settleSmoothing (TwistYourGutsAudioProcessor& processor, int numBlocks = 8)
+    void settleSmoothing (CryptaAudioProcessor& processor, int numBlocks = 8)
     {
         for (int i = 0; i < numBlocks; ++i)
         {
@@ -34,7 +34,7 @@ namespace
     // ParallelCompressorTests.cpp/VoicingTests.cpp), so they pull both
     // stages' blend controls to 0% (fully dry) to isolate the gain-staging
     // path being tested.
-    void neutralizeDynamicsAndVoicing (TwistYourGutsAudioProcessor& processor)
+    void neutralizeDynamicsAndVoicing (CryptaAudioProcessor& processor)
     {
         auto* lowCompMixParam = processor.apvts.getParameter (ParamIDs::lowCompMix);
         auto* highBlendParam = processor.apvts.getParameter (ParamIDs::highBlend);
@@ -48,7 +48,7 @@ namespace
 
 TEST_CASE ("Gain math: +6dB input gain doubles the RMS level", "[gain][dsp]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (testSampleRate, testBlockSize);
 
     neutralizeDynamicsAndVoicing (processor);
@@ -90,7 +90,7 @@ TEST_CASE ("Passthrough level test: default parameters leave the signal level un
     // therefore checks level transparency (RMS ratio ~= 0 dB) rather than
     // sample-for-sample equality; the flat-sum property itself is asserted
     // rigorously, across many probe frequencies, in CrossoverTests.cpp.
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (processor);
 
@@ -116,7 +116,7 @@ TEST_CASE ("Passthrough level test: default parameters leave the signal level un
 
 TEST_CASE ("Bypass parameter forces a bit-exact passthrough", "[gain][bypass]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (testSampleRate, testBlockSize);
 
     auto* inputGainParam = processor.apvts.getParameter (ParamIDs::inputGain);

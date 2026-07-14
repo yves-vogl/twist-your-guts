@@ -30,7 +30,7 @@
 // filters here are zero-latency). getLatencySamples() reports it so
 // PluginProcessor can feed it into the plugin's overall latency-compensation
 // seam (issue #9) and delay the low band to match.
-namespace tyg
+namespace cryp
 {
     enum class VoicingType
     {

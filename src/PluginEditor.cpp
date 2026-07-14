@@ -1,7 +1,7 @@
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
 
-TwistYourGutsAudioProcessorEditor::TwistYourGutsAudioProcessorEditor (TwistYourGutsAudioProcessor& processorToEdit)
+CryptaAudioProcessorEditor::CryptaAudioProcessorEditor (CryptaAudioProcessor& processorToEdit)
     : juce::AudioProcessorEditor (&processorToEdit),
       genericEditor (processorToEdit)
 {
@@ -10,9 +10,9 @@ TwistYourGutsAudioProcessorEditor::TwistYourGutsAudioProcessorEditor (TwistYourG
     setSize (genericEditor.getWidth(), genericEditor.getHeight());
 }
 
-TwistYourGutsAudioProcessorEditor::~TwistYourGutsAudioProcessorEditor() = default;
+CryptaAudioProcessorEditor::~CryptaAudioProcessorEditor() = default;
 
-void TwistYourGutsAudioProcessorEditor::resized()
+void CryptaAudioProcessorEditor::resized()
 {
     genericEditor.setBounds (getLocalBounds());
 }

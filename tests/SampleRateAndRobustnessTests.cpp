@@ -32,7 +32,7 @@ TEST_CASE ("Sample-rate sweep: processBlock stays finite and reports plausible l
 
     for (const auto sampleRate : sampleRates)
     {
-        TwistYourGutsAudioProcessor processor;
+        CryptaAudioProcessor processor;
         processor.prepareToPlay (sampleRate, testBlockSize);
 
         INFO ("sampleRate = " << sampleRate);
@@ -54,7 +54,7 @@ TEST_CASE ("Sample-rate sweep: processBlock stays finite and reports plausible l
 
 TEST_CASE ("Bus configuration: mono in/out processes without crashing or producing NaN/Inf", "[robustness][bus-layout]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
 
     juce::AudioProcessor::BusesLayout monoLayout;
     monoLayout.inputBuses.add (juce::AudioChannelSet::mono());
@@ -80,7 +80,7 @@ TEST_CASE ("Bus configuration: mono in/out processes without crashing or produci
 
 TEST_CASE ("Bus configuration: stereo in/out (default) processes without crashing or producing NaN/Inf", "[robustness][bus-layout]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, testBlockSize);
     CHECK (processor.getTotalNumInputChannels() == 2);
     CHECK (processor.getTotalNumOutputChannels() == 2);
@@ -98,7 +98,7 @@ TEST_CASE ("Bus configuration: stereo in/out (default) processes without crashin
 
 TEST_CASE ("Extreme parameter automation: randomising every parameter every block never produces NaN/Inf", "[robustness][automation]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, testBlockSize);
 
     juce::Random random (2026);
@@ -118,7 +118,7 @@ TEST_CASE ("Extreme parameter automation: randomising every parameter every bloc
 
 TEST_CASE ("Long-run stability: continuous processing over an extended run stays finite (no slow-building blowup)", "[robustness][long-run]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, testBlockSize);
 
     // Enable every stage at once (gate, EQ, IR loader all default-off) so

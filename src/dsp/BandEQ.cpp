@@ -8,7 +8,7 @@ namespace
     constexpr float shelfQ = 0.70710678f;
 }
 
-namespace tyg
+namespace cryp
 {
     void BandEQ::prepare (const juce::dsp::ProcessSpec& spec)
     {

@@ -14,7 +14,7 @@
 // juce::dsp::DryWetMixer used for the parallel blend is configured
 // accordingly (wetLatency stays 0), so this stage never needs to feed into
 // the plugin's latency-compensation seam.
-namespace tyg
+namespace cryp
 {
     class ParallelCompressor
     {

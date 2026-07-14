@@ -47,7 +47,7 @@ TEST_CASE ("IRLoader: with no IR loaded, output is a bit-exact identity passthro
     // response until loadImpulseResponse() is called (JUCE 8.0.14), so this
     // is the plugin's safe-by-default state before any factory/user IR is
     // loaded.
-    tyg::IRLoader irLoader;
+    cryp::IRLoader irLoader;
     irLoader.prepare (makeSpec(), 1.0f);
 
     // juce::dsp::Convolution installs its (here: identity) engine via the
@@ -83,7 +83,7 @@ TEST_CASE ("IRLoader: with no IR loaded, output is a bit-exact identity passthro
 
 TEST_CASE ("IRLoader: 0% mix is a passthrough regardless of the loaded IR", "[ir][dsp]")
 {
-    tyg::IRLoader irLoader;
+    cryp::IRLoader irLoader;
     irLoader.prepare (makeSpec (2), 0.0f);
     irLoader.loadImpulseResponse (makeSyntheticImpulseResponse(), testSampleRate);
 
@@ -118,7 +118,7 @@ TEST_CASE ("IRLoader: 0% mix is a passthrough regardless of the loaded IR", "[ir
 
 TEST_CASE ("IRLoader: loading a real IR at 100% wet audibly changes the signal", "[ir][dsp]")
 {
-    tyg::IRLoader irLoader;
+    cryp::IRLoader irLoader;
     irLoader.prepare (makeSpec (1), 1.0f);
     irLoader.loadImpulseResponse (makeSyntheticImpulseResponse(), testSampleRate);
 
@@ -159,7 +159,7 @@ TEST_CASE ("IRLoader: no NaN/Inf across a denormal-range sweep, with and without
 {
     for (const bool loadIr : { false, true })
     {
-        tyg::IRLoader irLoader;
+        cryp::IRLoader irLoader;
         irLoader.prepare (makeSpec (2), 1.0f);
 
         if (loadIr)

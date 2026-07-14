@@ -8,7 +8,7 @@
 
 TEST_CASE ("Denormal-range input produces no NaN/Inf output", "[robustness]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
 
     auto* inputGainParam = processor.apvts.getParameter (ParamIDs::inputGain);
@@ -42,7 +42,7 @@ TEST_CASE ("Denormal-range input produces no NaN/Inf output", "[robustness]")
 
 TEST_CASE ("Zero-sample buffer does not crash processBlock", "[robustness]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
 
     juce::AudioBuffer<float> buffer (2, 0);
@@ -55,7 +55,7 @@ TEST_CASE ("Zero-sample buffer does not crash processBlock", "[robustness]")
 
 TEST_CASE ("Zero-sample buffer does not crash when bypassed", "[robustness]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
 
     auto* bypassParam = processor.apvts.getParameter (ParamIDs::bypass);

@@ -6,7 +6,7 @@
 
 TEST_CASE ("State round-trip preserves non-default parameter values", "[state]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
 
     auto* inputGainParam = processor.apvts.getParameter (ParamIDs::inputGain);
@@ -48,7 +48,7 @@ TEST_CASE ("State round-trip preserves non-default parameter values", "[state]")
 
 TEST_CASE ("State round-trip preserves non-default values of the full v1.0 parameter set", "[state][parameters]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
 
     // Exercise a representative float (log-skewed frequency), a bool, and

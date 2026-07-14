@@ -7,7 +7,7 @@ namespace
     constexpr double makeupGainRampDurationSeconds = 0.02;
 }
 
-namespace tyg
+namespace cryp
 {
     void ParallelCompressor::prepare (const juce::dsp::ProcessSpec& spec, float initialWetMixProportion01)
     {

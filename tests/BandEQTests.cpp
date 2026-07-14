@@ -23,7 +23,7 @@ namespace
         return spec;
     }
 
-    double measureLevelRatioDb (tyg::BandEQ& eq, double probeFrequencyHz)
+    double measureLevelRatioDb (cryp::BandEQ& eq, double probeFrequencyHz)
     {
         juce::AudioBuffer<float> buffer (1, numSamples);
         TestHelpers::fillWithSine (buffer, testSampleRate, probeFrequencyHz, 0.5f);
@@ -53,7 +53,7 @@ namespace
 
 TEST_CASE ("BandEQ: all bands at 0dB gain is transparent across the band", "[eq][dsp]")
 {
-    tyg::BandEQ eq;
+    cryp::BandEQ eq;
     eq.prepare (makeSpec());
     eq.setLowShelf (100.0f, 0.0f);
     eq.setPeak1 (500.0f, 0.0f, 0.7f);
@@ -71,7 +71,7 @@ TEST_CASE ("BandEQ: all bands at 0dB gain is transparent across the band", "[eq]
 
 TEST_CASE ("BandEQ: low shelf boost raises level at low frequencies but not at high ones", "[eq][dsp]")
 {
-    tyg::BandEQ eq;
+    cryp::BandEQ eq;
     eq.prepare (makeSpec());
     eq.setLowShelf (200.0f, 12.0f);
     eq.setPeak1 (500.0f, 0.0f, 0.7f);
@@ -84,7 +84,7 @@ TEST_CASE ("BandEQ: low shelf boost raises level at low frequencies but not at h
 
 TEST_CASE ("BandEQ: high shelf cut lowers level at high frequencies but not at low ones", "[eq][dsp]")
 {
-    tyg::BandEQ eq;
+    cryp::BandEQ eq;
     eq.prepare (makeSpec());
     eq.setLowShelf (100.0f, 0.0f);
     eq.setPeak1 (500.0f, 0.0f, 0.7f);
@@ -97,7 +97,7 @@ TEST_CASE ("BandEQ: high shelf cut lowers level at high frequencies but not at l
 
 TEST_CASE ("BandEQ: a peak boost raises level at its centre frequency", "[eq][dsp]")
 {
-    tyg::BandEQ eq;
+    cryp::BandEQ eq;
     eq.prepare (makeSpec());
     eq.setLowShelf (100.0f, 0.0f);
     eq.setPeak1 (1000.0f, 9.0f, 1.0f);
@@ -110,7 +110,7 @@ TEST_CASE ("BandEQ: a peak boost raises level at its centre frequency", "[eq][ds
 
 TEST_CASE ("BandEQ: coefficient updates across a wide parameter sweep never produce NaN/Inf", "[eq][dsp][robustness]")
 {
-    tyg::BandEQ eq;
+    cryp::BandEQ eq;
     eq.prepare (makeSpec (2));
 
     juce::AudioBuffer<float> buffer (2, 512);

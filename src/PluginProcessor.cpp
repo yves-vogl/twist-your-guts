@@ -13,7 +13,7 @@ namespace
 }
 
 //==============================================================================
-TwistYourGutsAudioProcessor::TwistYourGutsAudioProcessor()
+CryptaAudioProcessor::CryptaAudioProcessor()
     : AudioProcessor (BusesProperties()
                           .withInput ("Input", juce::AudioChannelSet::stereo(), true)
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
@@ -104,65 +104,65 @@ TwistYourGutsAudioProcessor::TwistYourGutsAudioProcessor()
     jassert (irMixPercent != nullptr);
 }
 
-TwistYourGutsAudioProcessor::~TwistYourGutsAudioProcessor() = default;
+CryptaAudioProcessor::~CryptaAudioProcessor() = default;
 
 //==============================================================================
-juce::AudioProcessorValueTreeState::ParameterLayout TwistYourGutsAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout CryptaAudioProcessor::createParameterLayout()
 {
-    return tyg::createParameterLayout();
+    return cryp::createParameterLayout();
 }
 
 //==============================================================================
-const juce::String TwistYourGutsAudioProcessor::getName() const
+const juce::String CryptaAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool TwistYourGutsAudioProcessor::acceptsMidi() const
+bool CryptaAudioProcessor::acceptsMidi() const
 {
     return false;
 }
 
-bool TwistYourGutsAudioProcessor::producesMidi() const
+bool CryptaAudioProcessor::producesMidi() const
 {
     return false;
 }
 
-bool TwistYourGutsAudioProcessor::isMidiEffect() const
+bool CryptaAudioProcessor::isMidiEffect() const
 {
     return false;
 }
 
-double TwistYourGutsAudioProcessor::getTailLengthSeconds() const
+double CryptaAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int TwistYourGutsAudioProcessor::getNumPrograms()
+int CryptaAudioProcessor::getNumPrograms()
 {
     return 1;
 }
 
-int TwistYourGutsAudioProcessor::getCurrentProgram()
+int CryptaAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void TwistYourGutsAudioProcessor::setCurrentProgram (int)
+void CryptaAudioProcessor::setCurrentProgram (int)
 {
 }
 
-const juce::String TwistYourGutsAudioProcessor::getProgramName (int)
+const juce::String CryptaAudioProcessor::getProgramName (int)
 {
     return {};
 }
 
-void TwistYourGutsAudioProcessor::changeProgramName (int, const juce::String&)
+void CryptaAudioProcessor::changeProgramName (int, const juce::String&)
 {
 }
 
 //==============================================================================
-void TwistYourGutsAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void CryptaAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
@@ -229,7 +229,7 @@ void TwistYourGutsAudioProcessor::prepareToPlay (double sampleRate, int samplesP
 }
 
 //==============================================================================
-int TwistYourGutsAudioProcessor::computeTotalLatencySamples() const noexcept
+int CryptaAudioProcessor::computeTotalLatencySamples() const noexcept
 {
     // Issue #42: the high band's oversampled voicing stage is the only
     // source of latency in the chain (the gate, low-band compressor, EQ and
@@ -240,7 +240,7 @@ int TwistYourGutsAudioProcessor::computeTotalLatencySamples() const noexcept
     return highVoicing.getLatencySamples();
 }
 
-void TwistYourGutsAudioProcessor::updateLatencyCompensation()
+void CryptaAudioProcessor::updateLatencyCompensation()
 {
     const auto totalLatencySamples = juce::jlimit (0, maxLatencyCompensationSamples, computeTotalLatencySamples());
 
@@ -253,11 +253,11 @@ void TwistYourGutsAudioProcessor::updateLatencyCompensation()
     lowBandLatencyDelay.setDelay (static_cast<float> (totalLatencySamples));
 }
 
-void TwistYourGutsAudioProcessor::releaseResources()
+void CryptaAudioProcessor::releaseResources()
 {
 }
 
-bool TwistYourGutsAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool CryptaAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
     const auto mono = juce::AudioChannelSet::mono();
     const auto stereo = juce::AudioChannelSet::stereo();
@@ -274,7 +274,7 @@ bool TwistYourGutsAudioProcessor::isBusesLayoutSupported (const BusesLayout& lay
     return true;
 }
 
-void TwistYourGutsAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void CryptaAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
 
@@ -313,7 +313,7 @@ void TwistYourGutsAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     lowCompressor.setWetMixProportion (lowCompMixPercent->load (std::memory_order_relaxed) / 100.0f);
 
     const auto voicingIndex = static_cast<int> (highVoicingChoice->load (std::memory_order_relaxed));
-    highVoicing.setVoicing (static_cast<tyg::VoicingType> (juce::jlimit (0, 2, voicingIndex)));
+    highVoicing.setVoicing (static_cast<cryp::VoicingType> (juce::jlimit (0, 2, voicingIndex)));
     highVoicing.setDrive (highDrivePercent->load (std::memory_order_relaxed) / 100.0f);
     highVoicing.setTone (highTonePercent->load (std::memory_order_relaxed) / 100.0f);
     highVoicing.setWetMixProportion (highBlendPercent->load (std::memory_order_relaxed) / 100.0f);
@@ -344,7 +344,7 @@ void TwistYourGutsAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     }
 }
 
-void TwistYourGutsAudioProcessor::processChunk (juce::dsp::AudioBlock<float>& chunk) noexcept
+void CryptaAudioProcessor::processChunk (juce::dsp::AudioBlock<float>& chunk) noexcept
 {
     inputGainProcessor.process (juce::dsp::ProcessContextReplacing<float> (chunk));
 
@@ -385,7 +385,7 @@ void TwistYourGutsAudioProcessor::processChunk (juce::dsp::AudioBlock<float>& ch
 
     // Cab-sim IR loader. Skipped entirely when disabled for the same reason
     // (and safe-by-default even when enabled with no IR loaded yet - see
-    // tyg::IRLoader).
+    // cryp::IRLoader).
     if (irEnabled->load (std::memory_order_relaxed) >= 0.5f)
         irLoader.process (chunk);
 
@@ -408,31 +408,31 @@ void TwistYourGutsAudioProcessor::processChunk (juce::dsp::AudioBlock<float>& ch
 }
 
 //==============================================================================
-bool TwistYourGutsAudioProcessor::hasEditor() const
+bool CryptaAudioProcessor::hasEditor() const
 {
     return true;
 }
 
-juce::AudioProcessorEditor* TwistYourGutsAudioProcessor::createEditor()
+juce::AudioProcessorEditor* CryptaAudioProcessor::createEditor()
 {
-    return new TwistYourGutsAudioProcessorEditor (*this);
+    return new CryptaAudioProcessorEditor (*this);
 }
 
 //==============================================================================
-juce::AudioProcessorParameter* TwistYourGutsAudioProcessor::getBypassParameter() const
+juce::AudioProcessorParameter* CryptaAudioProcessor::getBypassParameter() const
 {
     return bypassParameter;
 }
 
 //==============================================================================
-void TwistYourGutsAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void CryptaAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     const auto state = apvts.copyState();
     const std::unique_ptr<juce::XmlElement> xml (state.createXml());
     copyXmlToBinary (*xml, destData);
 }
 
-void TwistYourGutsAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void CryptaAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     const std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
 
@@ -441,7 +441,7 @@ void TwistYourGutsAudioProcessor::setStateInformation (const void* data, int siz
 }
 
 //==============================================================================
-void TwistYourGutsAudioProcessor::loadImpulseResponse (juce::AudioBuffer<float> irBuffer, double irSampleRate)
+void CryptaAudioProcessor::loadImpulseResponse (juce::AudioBuffer<float> irBuffer, double irSampleRate)
 {
     irLoader.loadImpulseResponse (std::move (irBuffer), irSampleRate);
 }
@@ -450,5 +450,5 @@ void TwistYourGutsAudioProcessor::loadImpulseResponse (juce::AudioBuffer<float> 
 // This creates new instances of the plugin.
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new TwistYourGutsAudioProcessor();
+    return new CryptaAudioProcessor();
 }

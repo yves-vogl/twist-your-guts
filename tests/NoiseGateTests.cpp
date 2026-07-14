@@ -25,7 +25,7 @@ namespace
 
 TEST_CASE ("NoiseGateStage: disabled is a bit-exact passthrough", "[gate][dsp]")
 {
-    tyg::NoiseGateStage gate;
+    cryp::NoiseGateStage gate;
     gate.prepare (makeSpec());
     gate.setEnabled (false);
     gate.setThresholdDb (-10.0f); // aggressive settings, should still be ignored
@@ -52,7 +52,7 @@ TEST_CASE ("NoiseGateStage: disabled is a bit-exact passthrough", "[gate][dsp]")
 
 TEST_CASE ("NoiseGateStage: enabled attenuates a signal below threshold", "[gate][dsp]")
 {
-    tyg::NoiseGateStage gate;
+    cryp::NoiseGateStage gate;
     gate.prepare (makeSpec (1));
     gate.setEnabled (true);
     gate.setThresholdDb (-20.0f);
@@ -88,7 +88,7 @@ TEST_CASE ("NoiseGateStage: enabled attenuates a signal below threshold", "[gate
 
 TEST_CASE ("NoiseGateStage: enabled passes a signal above threshold through essentially unchanged", "[gate][dsp]")
 {
-    tyg::NoiseGateStage gate;
+    cryp::NoiseGateStage gate;
     gate.prepare (makeSpec (1));
     gate.setEnabled (true);
     gate.setThresholdDb (-40.0f);
@@ -116,7 +116,7 @@ TEST_CASE ("NoiseGateStage: enabled passes a signal above threshold through esse
 
 TEST_CASE ("NoiseGateStage: no NaN/Inf across a denormal-range and extreme-parameter sweep", "[gate][dsp][robustness]")
 {
-    tyg::NoiseGateStage gate;
+    cryp::NoiseGateStage gate;
     gate.prepare (makeSpec());
     gate.setEnabled (true);
     gate.setThresholdDb (-80.0f);

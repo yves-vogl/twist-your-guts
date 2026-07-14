@@ -41,7 +41,7 @@ namespace
     constexpr size_t oversamplingFactorExponent = 2;
 }
 
-namespace tyg
+namespace cryp
 {
     void Voicing::prepare (const juce::dsp::ProcessSpec& spec, float initialWetMixProportion01)
     {

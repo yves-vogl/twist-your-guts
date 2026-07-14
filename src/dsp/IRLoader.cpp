@@ -16,7 +16,7 @@ namespace
     }
 }
 
-namespace tyg
+namespace cryp
 {
     void IRLoader::prepare (const juce::dsp::ProcessSpec& spec, float initialWetMixProportion01)
     {

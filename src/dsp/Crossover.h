@@ -21,7 +21,7 @@
 // and risks the two cutoffs drifting apart under future automation/preset
 // changes; the single-instance dual-output form makes that impossible by
 // construction.
-namespace tyg
+namespace cryp
 {
     class Crossover
     {

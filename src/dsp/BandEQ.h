@@ -18,10 +18,10 @@
 // object once (2nd-order form, via the raw 6-argument constructor with
 // placeholder identity values), and every subsequent parameter change
 // overwrites that same object's raw coefficient storage in place via
-// tyg::applyBiquadCoefficients(), using
+// cryp::applyBiquadCoefficients(), using
 // juce::dsp::IIR::ArrayCoefficients<float>::makeXxx() (stack-only, zero
 // allocation) as the source of the new values. See RealtimeCoefficients.h.
-namespace tyg
+namespace cryp
 {
     class BandEQ
     {

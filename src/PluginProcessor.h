@@ -17,11 +17,11 @@
 // 4-band EQ -> IR loader (cab sim) -> optional safety clip -> output trim.
 // See docs/architecture.md for the full breakdown and docs/manual.md for the
 // user-facing parameter reference.
-class TwistYourGutsAudioProcessor final : public juce::AudioProcessor
+class CryptaAudioProcessor final : public juce::AudioProcessor
 {
 public:
-    TwistYourGutsAudioProcessor();
-    ~TwistYourGutsAudioProcessor() override;
+    CryptaAudioProcessor();
+    ~CryptaAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -62,7 +62,7 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
     // Loads a new cab-sim impulse response into the IR loader stage. Not
-    // real-time safe by contract (see tyg::IRLoader) - call from the message
+    // real-time safe by contract (see cryp::IRLoader) - call from the message
     // thread only (e.g. in response to a future GUI file picker or preset
     // load), never from processBlock() or any audio-thread callback.
     void loadImpulseResponse (juce::AudioBuffer<float> irBuffer, double irSampleRate);
@@ -88,18 +88,18 @@ private:
     juce::dsp::Gain<float> outputGainProcessor;
 
     // Full-band input noise gate, ahead of the crossover split.
-    tyg::NoiseGateStage gate;
+    cryp::NoiseGateStage gate;
 
     // Issue #8: LR4 crossover splitting the (input-trimmed, gated) signal
     // into low and high bands ahead of independent per-band processing.
-    tyg::Crossover crossover;
+    cryp::Crossover crossover;
 
     // Low band: parallel compressor, then level trim.
-    tyg::ParallelCompressor lowCompressor;
+    cryp::ParallelCompressor lowCompressor;
 
     // High band: selectable oversampled distortion voicing (Gnaw/Wool/
     // Razor), then level trim.
-    tyg::Voicing highVoicing;
+    cryp::Voicing highVoicing;
 
     // Issue #10: independent per-band level trims applied after each band's
     // dynamics/voicing processing and before the bands are summed back
@@ -108,8 +108,8 @@ private:
     juce::dsp::Gain<float> highGainProcessor;
 
     // Post-sum 4-band EQ and cab-sim IR loader.
-    tyg::BandEQ eq;
-    tyg::IRLoader irLoader;
+    cryp::BandEQ eq;
+    cryp::IRLoader irLoader;
 
     // Issue #9: upper bound on the latency this plugin will ever need to
     // compensate for, i.e. the largest oversampling latency the high-band
@@ -178,5 +178,5 @@ private:
     // hosts can offer their own bypass UI/automation for this parameter.
     juce::RangedAudioParameter* bypassParameter = nullptr;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TwistYourGutsAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CryptaAudioProcessor)
 };

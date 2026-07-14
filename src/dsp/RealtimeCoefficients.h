@@ -21,7 +21,7 @@
 // JUCE 8.0.14, juce_dsp/processors/juce_IIRFilter.h /
 // juce_dsp/processors/juce_IIRFilter_Impl.h (Coefficients::assignImpl shows
 // the {b0,b1,b2,a1,a2} normalised-by-a0 storage layout this mirrors).
-namespace tyg
+namespace cryp
 {
     // Writes a normalised 2nd-order {b0,b1,b2,a1,a2} set (5 raw coefficients)
     // computed from a raw {b0,b1,b2,a0,a1,a2} array (as returned by

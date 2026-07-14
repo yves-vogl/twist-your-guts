@@ -34,7 +34,7 @@ TEST_CASE ("Latency: high-band oversampling reports positive latency, independen
 
         for (const auto blockSize : blockSizes)
         {
-            TwistYourGutsAudioProcessor processor;
+            CryptaAudioProcessor processor;
             processor.prepareToPlay (sampleRate, blockSize);
 
             const auto latency = processor.getLatencySamples();
@@ -53,7 +53,7 @@ TEST_CASE ("Latency: high-band oversampling reports positive latency, independen
 
 TEST_CASE ("Latency: re-preparing the processor recomputes latency deterministically", "[latency][dsp]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
     const auto latency48k = processor.getLatencySamples();
     CHECK (latency48k > 0);
@@ -74,7 +74,7 @@ TEST_CASE ("Latency: re-preparing the processor recomputes latency deterministic
 TEST_CASE ("Latency: band-split-then-sum preserves magnitude flatness through the full processor", "[latency][dsp][crossover]")
 {
     // Exercises the same flat-sum property as CrossoverTests.cpp, but end-
-    // to-end through TwistYourGutsAudioProcessor::processBlock() - i.e.
+    // to-end through CryptaAudioProcessor::processBlock() - i.e.
     // including the low-band compensation delay line and the high-band
     // voicing's own internal (DryWetMixer) dry-path delay - to confirm the
     // #9/#42 latency-compensation seam doesn't perturb the #8 flat-sum
@@ -93,7 +93,7 @@ TEST_CASE ("Latency: band-split-then-sum preserves magnitude flatness through th
 
     for (const auto probeFrequencyHz : probeFrequenciesHz)
     {
-        TwistYourGutsAudioProcessor processor;
+        CryptaAudioProcessor processor;
         processor.prepareToPlay (testSampleRate, testBlockSize);
 
         auto* highBlendParam = processor.apvts.getParameter (ParamIDs::highBlend);

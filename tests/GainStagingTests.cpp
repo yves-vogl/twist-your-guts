@@ -39,7 +39,7 @@ namespace
     // character (which get their own dedicated tests), so both stages'
     // blend controls are pulled to 0% (fully dry) up front to isolate the
     // level-trim behaviour being tested.
-    void neutralizeDynamicsAndVoicing (TwistYourGutsAudioProcessor& processor)
+    void neutralizeDynamicsAndVoicing (CryptaAudioProcessor& processor)
     {
         auto* lowCompMixParam = processor.apvts.getParameter (ParamIDs::lowCompMix);
         auto* highBlendParam = processor.apvts.getParameter (ParamIDs::highBlend);
@@ -50,7 +50,7 @@ namespace
         highBlendParam->setValueNotifyingHost (highBlendParam->convertTo0to1 (0.0f));
     }
 
-    double measureSettledLevelDb (TwistYourGutsAudioProcessor& processor, double probeFrequencyHz)
+    double measureSettledLevelDb (CryptaAudioProcessor& processor, double probeFrequencyHz)
     {
         juce::AudioBuffer<float> buffer (2, testBlockSize);
         juce::MidiBuffer midi;
@@ -68,7 +68,7 @@ namespace
 
 TEST_CASE ("Gain staging: lowLevel attenuates the low band only", "[gain-staging][dsp]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (processor);
 
@@ -77,7 +77,7 @@ TEST_CASE ("Gain staging: lowLevel attenuates the low band only", "[gain-staging
 
     const auto referenceLowLevelDb = measureSettledLevelDb (processor, lowProbeFrequencyHz);
 
-    TwistYourGutsAudioProcessor attenuatedProcessor;
+    CryptaAudioProcessor attenuatedProcessor;
     attenuatedProcessor.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (attenuatedProcessor);
     auto* attenuatedLowLevelParam = attenuatedProcessor.apvts.getParameter (ParamIDs::lowLevel);
@@ -87,7 +87,7 @@ TEST_CASE ("Gain staging: lowLevel attenuates the low band only", "[gain-staging
     const auto attenuatedLowLevelDb = measureSettledLevelDb (attenuatedProcessor, lowProbeFrequencyHz);
     const auto attenuatedHighLevelDb = measureSettledLevelDb (attenuatedProcessor, highProbeFrequencyHz);
 
-    TwistYourGutsAudioProcessor referenceProcessor;
+    CryptaAudioProcessor referenceProcessor;
     referenceProcessor.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (referenceProcessor);
     const auto referenceHighLevelDb = measureSettledLevelDb (referenceProcessor, highProbeFrequencyHz);
@@ -101,17 +101,17 @@ TEST_CASE ("Gain staging: lowLevel attenuates the low band only", "[gain-staging
 
 TEST_CASE ("Gain staging: highLevel attenuates the high band only", "[gain-staging][dsp]")
 {
-    TwistYourGutsAudioProcessor referenceProcessor;
+    CryptaAudioProcessor referenceProcessor;
     referenceProcessor.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (referenceProcessor);
     const auto referenceLowLevelDb = measureSettledLevelDb (referenceProcessor, lowProbeFrequencyHz);
 
-    TwistYourGutsAudioProcessor referenceProcessor2;
+    CryptaAudioProcessor referenceProcessor2;
     referenceProcessor2.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (referenceProcessor2);
     const auto referenceHighLevelDb = measureSettledLevelDb (referenceProcessor2, highProbeFrequencyHz);
 
-    TwistYourGutsAudioProcessor attenuatedProcessor;
+    CryptaAudioProcessor attenuatedProcessor;
     attenuatedProcessor.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (attenuatedProcessor);
     auto* attenuatedHighLevelParam = attenuatedProcessor.apvts.getParameter (ParamIDs::highLevel);
@@ -134,7 +134,7 @@ TEST_CASE ("Gain staging: outputClip only engages when explicitly enabled, and c
     // something to do.
     constexpr float loudInputGainDb = 24.0f;
 
-    TwistYourGutsAudioProcessor unclippedProcessor;
+    CryptaAudioProcessor unclippedProcessor;
     unclippedProcessor.prepareToPlay (testSampleRate, testBlockSize);
     auto* unclippedInputGainParam = unclippedProcessor.apvts.getParameter (ParamIDs::inputGain);
     REQUIRE (unclippedInputGainParam != nullptr);
@@ -153,7 +153,7 @@ TEST_CASE ("Gain staging: outputClip only engages when explicitly enabled, and c
     // assertion below is testing something real.
     REQUIRE (unclippedBuffer.getMagnitude (0, unclippedBuffer.getNumSamples()) > 1.0f);
 
-    TwistYourGutsAudioProcessor clippedProcessor;
+    CryptaAudioProcessor clippedProcessor;
     clippedProcessor.prepareToPlay (testSampleRate, testBlockSize);
     auto* clippedInputGainParam = clippedProcessor.apvts.getParameter (ParamIDs::inputGain);
     auto* outputClipParam = clippedProcessor.apvts.getParameter (ParamIDs::outputClip);
@@ -176,7 +176,7 @@ TEST_CASE ("Gain staging: outputClip only engages when explicitly enabled, and c
 
 TEST_CASE ("Gain staging: 0 dB band level defaults are transparent", "[gain-staging][dsp]")
 {
-    TwistYourGutsAudioProcessor processor;
+    CryptaAudioProcessor processor;
     processor.prepareToPlay (testSampleRate, testBlockSize);
     neutralizeDynamicsAndVoicing (processor);
 
