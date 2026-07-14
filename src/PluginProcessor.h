@@ -3,15 +3,20 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
+#include "dsp/BandEQ.h"
 #include "dsp/Crossover.h"
+#include "dsp/IRLoader.h"
+#include "dsp/NoiseGateStage.h"
+#include "dsp/ParallelCompressor.h"
+#include "dsp/Voicing.h"
 
-// As of M1 (issues #7-#10), the APVTS layout declares the complete, ID-frozen
-// v1.0 parameter set (see src/params/ParameterIds.h and ParameterLayout.h),
-// and processBlock() implements the gain-staged LR4 crossover core: input
-// trim -> crossover split -> per-band level -> sum -> optional safety clip ->
-// output trim. Compression, high-band voicing/drive, EQ and the IR loader
-// remain declared-but-inert until their own milestone (M2 dynamics, M3
-// distortion, M4 EQ/IR) wires them into the signal chain.
+// As of the M1 "DSP completion" milestone (issue #42), the full v1.0 signal
+// path from the README is wired and live: input trim -> noise gate -> LR4
+// crossover split -> [low: parallel compressor -> level] + [high: voicing
+// (Gnaw/Wool/Razor, oversampled) -> level] -> delay-compensated sum ->
+// 4-band EQ -> IR loader (cab sim) -> optional safety clip -> output trim.
+// See docs/architecture.md for the full breakdown and docs/manual.md for the
+// user-facing parameter reference.
 class TwistYourGutsAudioProcessor final : public juce::AudioProcessor
 {
 public:
@@ -56,49 +61,67 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    // Loads a new cab-sim impulse response into the IR loader stage. Not
+    // real-time safe by contract (see tyg::IRLoader) - call from the message
+    // thread only (e.g. in response to a future GUI file picker or preset
+    // load), never from processBlock() or any audio-thread callback.
+    void loadImpulseResponse (juce::AudioBuffer<float> irBuffer, double irSampleRate);
+
 private:
     //==============================================================================
     // Latency-compensation seam (issue #9): computes the plugin's total
-    // reported latency and re-arms the low-band compensation delay to match
-    // it. Currently always 0 (no oversampling exists yet), but this is a
-    // real seam, not a mislabeled no-op - M3's oversampled high-band voicing
-    // stage will report a non-zero latency here, and the low-band delay
-    // line below will pick it up automatically so both bands stay time-
-    // aligned when summed. Called once from prepareToPlay().
+    // reported latency (now the high-band voicing's oversampling latency,
+    // issue #42) and re-arms the low-band compensation delay to match it.
+    // Called once from prepareToPlay().
     int computeTotalLatencySamples() const noexcept;
     void updateLatencyCompensation();
 
-    // Processes at most `preparedBlockSize` samples: crossover split, per-
-    // band level, sum, optional safety clip. Called once per chunk from
-    // processBlock() so oversized host blocks (larger than prepareToPlay
-    // promised) are handled defensively without ever resizing a buffer on
-    // the audio thread.
+    // Processes at most `preparedBlockSize` samples: gate, crossover split,
+    // per-band dynamics/voicing, per-band level, sum, EQ, IR loader,
+    // optional safety clip. Called once per chunk from processBlock() so
+    // oversized host blocks (larger than prepareToPlay promised) are handled
+    // defensively without ever resizing a buffer on the audio thread.
     void processChunk (juce::dsp::AudioBlock<float>& chunk) noexcept;
 
     //==============================================================================
     juce::dsp::Gain<float> inputGainProcessor;
     juce::dsp::Gain<float> outputGainProcessor;
 
-    // Issue #8: LR4 crossover splitting the (input-trimmed) signal into low
-    // and high bands ahead of independent per-band processing.
+    // Full-band input noise gate, ahead of the crossover split.
+    tyg::NoiseGateStage gate;
+
+    // Issue #8: LR4 crossover splitting the (input-trimmed, gated) signal
+    // into low and high bands ahead of independent per-band processing.
     tyg::Crossover crossover;
 
-    // Issue #10: independent per-band level trims applied after the split
-    // and before the bands are summed back together.
+    // Low band: parallel compressor, then level trim.
+    tyg::ParallelCompressor lowCompressor;
+
+    // High band: selectable oversampled distortion voicing (Gnaw/Wool/
+    // Razor), then level trim.
+    tyg::Voicing highVoicing;
+
+    // Issue #10: independent per-band level trims applied after each band's
+    // dynamics/voicing processing and before the bands are summed back
+    // together.
     juce::dsp::Gain<float> lowGainProcessor;
     juce::dsp::Gain<float> highGainProcessor;
 
-    // Issue #9: upper bound on the latency this plugin will ever need to
-    // compensate for, i.e. the largest oversampling latency M3's high-band
-    // voicing stage is expected to introduce. Generous headroom (a few
-    // hundred samples at typical sample rates covers even high-order/high-
-    // ratio oversampling FIR latencies) at negligible memory cost.
-    static constexpr int maxLatencyCompensationSamples = 1024;
+    // Post-sum 4-band EQ and cab-sim IR loader.
+    tyg::BandEQ eq;
+    tyg::IRLoader irLoader;
 
-    // Delays the low band so it stays time-aligned with the high band once
-    // M3 gives the high band a non-zero oversampling latency. None-
-    // interpolation is correct here: latency compensation is always an
-    // integer number of samples, never a fractionally modulated delay.
+    // Issue #9: upper bound on the latency this plugin will ever need to
+    // compensate for, i.e. the largest oversampling latency the high-band
+    // voicing stage is expected to introduce. Generous headroom well above
+    // the actual 4x-oversampling FIR latency at any supported sample rate,
+    // at negligible memory cost.
+    static constexpr int maxLatencyCompensationSamples = 4096;
+
+    // Delays the low band so it stays time-aligned with the oversampled high
+    // band. None-interpolation is correct here: latency compensation is
+    // always an integer number of samples, never a fractionally modulated
+    // delay.
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::None> lowBandLatencyDelay { maxLatencyCompensationSamples };
 
     // Pre-allocated band buffers, sized to `preparedBlockSize` in
@@ -117,6 +140,39 @@ private:
     std::atomic<float>* crossoverFreqHz = nullptr;
     std::atomic<float>* lowLevelDb = nullptr;
     std::atomic<float>* highLevelDb = nullptr;
+
+    std::atomic<float>* gateEnabled = nullptr;
+    std::atomic<float>* gateThresholdDb = nullptr;
+    std::atomic<float>* gateRatio = nullptr;
+    std::atomic<float>* gateAttackMs = nullptr;
+    std::atomic<float>* gateReleaseMs = nullptr;
+
+    std::atomic<float>* lowCompThresholdDb = nullptr;
+    std::atomic<float>* lowCompRatio = nullptr;
+    std::atomic<float>* lowCompAttackMs = nullptr;
+    std::atomic<float>* lowCompReleaseMs = nullptr;
+    std::atomic<float>* lowCompMakeupDb = nullptr;
+    std::atomic<float>* lowCompMixPercent = nullptr;
+
+    std::atomic<float>* highVoicingChoice = nullptr;
+    std::atomic<float>* highDrivePercent = nullptr;
+    std::atomic<float>* highTonePercent = nullptr;
+    std::atomic<float>* highBlendPercent = nullptr;
+
+    std::atomic<float>* eqEnabled = nullptr;
+    std::atomic<float>* eqLowShelfFreqHz = nullptr;
+    std::atomic<float>* eqLowShelfGainDb = nullptr;
+    std::atomic<float>* eqPeak1FreqHz = nullptr;
+    std::atomic<float>* eqPeak1GainDb = nullptr;
+    std::atomic<float>* eqPeak1Q = nullptr;
+    std::atomic<float>* eqPeak2FreqHz = nullptr;
+    std::atomic<float>* eqPeak2GainDb = nullptr;
+    std::atomic<float>* eqPeak2Q = nullptr;
+    std::atomic<float>* eqHighShelfFreqHz = nullptr;
+    std::atomic<float>* eqHighShelfGainDb = nullptr;
+
+    std::atomic<float>* irEnabled = nullptr;
+    std::atomic<float>* irMixPercent = nullptr;
 
     // The actual parameter object handed back from getBypassParameter() so
     // hosts can offer their own bypass UI/automation for this parameter.

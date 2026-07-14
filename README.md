@@ -5,26 +5,27 @@
 [![CI](https://github.com/yves-vogl/twist-your-guts/actions/workflows/ci.yml/badge.svg)](https://github.com/yves-vogl/twist-your-guts/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-> **Work in progress.** Twist Your Guts is pre-1.0 and under active development. There are no built binaries or releases yet — building from source is currently the only way to run it. Expect breaking changes until v1.0.0 ships (see [Roadmap](#roadmap)).
+> **Work in progress.** Twist Your Guts is pre-1.0 and under active development (v0.1.0). There are no built binaries or releases yet — building from source is currently the only way to run it. Expect breaking changes until v1.0.0 ships (see [Roadmap](#roadmap)).
 
 ## What it is
 
-Twist Your Guts is a Parallax-style bass plugin built on JUCE 8. It splits your bass signal into low and high bands with a linear-phase-adjacent Linkwitz-Riley crossover, compresses the low band in parallel, and runs the high band through a choice of three distortion voicings before summing everything back together through a 4-band EQ and an impulse-response (cab sim) loader.
+Twist Your Guts is a Parallax-style bass plugin built on JUCE 8. It splits your bass signal into low and high bands with a linear-phase-adjacent Linkwitz-Riley crossover, compresses the low band in parallel, and runs the high band through a choice of three distortion voicings before summing everything back together through a 4-band EQ and an impulse-response (cab sim) loader. See [`docs/manual.md`](docs/manual.md) for the full parameter reference and usage tips.
 
-## Features (v1.0 scope)
+## Features
 
+- **Noise gate** — full-band, ahead of the crossover split
 - **LR4 crossover band-split** — 4th-order Linkwitz-Riley split, adjustable 60 Hz – 1000 Hz (default 250 Hz)
-- **Low band**: parallel compressor with wet/dry mix and output level
-- **High band**: three distortion voicings, each with independent drive/tone
-  - **Gnaw** — hard clip
-  - **Wool** — fuzz
-  - **Razor** — tight overdrive
+- **Low band**: parallel ("New York style") compressor with makeup gain, wet/dry mix, and output level
+- **High band**: three distortion voicings, each 4x oversampled to keep aliasing under control, with independent drive/tone
+  - **Gnaw** — op-amp-style hard clip
+  - **Wool** — cascaded soft-clip fuzz with a mid scoop
+  - **Razor** — tight overdrive: pre-clip highpass, soft clip, mid hump
   - Clean/distorted blend control per voicing, plus output level
-- **Noise gate** on the input stage
-- **4-band EQ** post-sum
-- **IR loader** (cabinet simulation) on the output stage
-- **Presets** with full state save/recall
-- **Metering** throughout the signal chain
+- **4-band EQ** post-sum (LowShelf / Peak / Peak / HighShelf)
+- **IR loader** (cabinet simulation) on the output stage — convolution engine is live; bundled factory IRs and a GUI file browser land in a later milestone
+- **Delay-compensated signal path** — the high band's oversampling latency is reported to the host and the low band is time-aligned to match
+- **Presets** with full state save/recall *(planned — a dedicated preset manager/versioning scheme is a later milestone; APVTS state save/load already round-trips today)*
+- **Metering** throughout the signal chain *(planned, alongside the custom GUI)*
 
 ## Signal flow
 
@@ -34,8 +35,9 @@ Input Trim → Gate → LR4 Split (60–1000 Hz, default 250 Hz)
         ┌─────────────┴─────────────┐
         │                           │
      Low band                   High band
-  Comp → Mix → Level    Voicing → Drive → Tone → Blend → Level
-        │                           │
+  Parallel Comp        Voicing → Drive → Tone → Blend
+  → Makeup → Mix                    │
+        │→ Level              → Level
         └─────────────┬─────────────┘
                        │
               Sum (delay-compensated)
@@ -44,10 +46,26 @@ Input Trim → Gate → LR4 Split (60–1000 Hz, default 250 Hz)
                        │
                   IR loader
                        │
-                     Output
+              Safety Clip (optional)
+                       │
+                 Output Trim
 ```
 
-The high band runs through oversampling for the distortion stage; the low band is delay-compensated to stay time-aligned with it before the sum. See [`docs/architecture.md`](docs/architecture.md) for the full breakdown, including the latency-compensation strategy.
+The high band runs 4x oversampled for the distortion stage; the low band is delay-compensated to stay time-aligned with it before the sum. See [`docs/architecture.md`](docs/architecture.md) for the full breakdown, including the latency-compensation strategy, and [`docs/manual.md`](docs/manual.md) for the full parameter reference.
+
+## Parameters
+
+See [`docs/manual.md`](docs/manual.md) for the complete, musically-annotated parameter reference. Summary:
+
+| Section | Parameters |
+|---|---|
+| IO / Global | Input Gain, Output Gain, Bypass, Safety Clip |
+| Noise Gate | Enable, Threshold, Ratio, Attack, Release |
+| Crossover | Frequency (60–1000 Hz) |
+| Low band | Comp Threshold/Ratio/Attack/Release/Makeup/Mix, Level |
+| High band | Voicing (Gnaw/Wool/Razor), Drive, Tone, Blend, Level |
+| EQ | Enable, Low Shelf Freq/Gain, Peak 1 Freq/Gain/Q, Peak 2 Freq/Gain/Q, High Shelf Freq/Gain |
+| IR loader | Enable, Mix |
 
 ## Installation
 
@@ -87,14 +105,11 @@ ctest --test-dir build --output-on-failure
 
 | Milestone | Description | Status |
 |---|---|---|
-| M0 | Bootstrap — project skeleton, CI, docs | In progress |
-| M1 | DSP core — crossover + latency framework | Planned |
-| M2 | Dynamics — gate + compressor | Planned |
-| M3 | Distortion engine — oversampling, 3 voicings | Planned |
-| M4 | EQ + IR loader | Planned |
-| M5 | State & presets | Planned |
-| M6 | Custom GUI | Planned |
-| M7 | Release engineering — signing, notarization, installers, v1.0.0 | Planned |
+| M0 | Bootstrap — project skeleton, CI, docs | Done |
+| M1 | DSP completion & test coverage — gate, crossover, parallel compressor, 3 voicings (oversampled), 4-band EQ, IR loader, latency compensation, broadened test suite | Done (v0.1.0) |
+| M2 | Presets & state recall — preset manager, factory presets, versioned state | Planned |
+| M3 | GUI & accessibility — custom LookAndFeel, metering UI, accessibility pass | Planned |
+| M4 | Release: signing, notarization, v1.0.0 — installers, tagged release | Planned |
 
 ## License
 
