@@ -1,0 +1,46 @@
+<svg viewBox="0 0 1120 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Twist Your Guts — logo lockup</title>
+  <desc id="d">The Twist Your Guts badge beside a heavy uppercase wordmark and a tagline.</desc>
+  <defs>
+    <radialGradient id="bg2" cx="50%" cy="38%" r="72%">
+      <stop offset="0" stop-color="#1e1614"/>
+      <stop offset="0.6" stop-color="#120d0b"/>
+      <stop offset="1" stop-color="#080605"/>
+    </radialGradient>
+    <linearGradient id="molten2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF9A2A"/>
+      <stop offset="0.5" stop-color="#FF3F2E"/>
+      <stop offset="1" stop-color="#C21238"/>
+    </linearGradient>
+    <filter id="glow2" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1120" height="300" rx="28" fill="#0c0908"/>
+  <rect x="0.75" y="0.75" width="1118.5" height="298.5" rx="27" fill="none" stroke="#FF4B2E" stroke-opacity="0.14" stroke-width="1.5"/>
+
+  <!-- badge, scaled from the 512 artwork -->
+  <g transform="translate(40,22) scale(0.5)">
+    <rect x="34" y="34" width="444" height="444" rx="104" fill="url(#bg2)"/>
+    <rect x="34.5" y="34.5" width="443" height="443" rx="103.5" fill="none" stroke="#FF4B2E" stroke-opacity="0.16" stroke-width="2"/>
+    <g filter="url(#glow2)" fill="none" stroke="url(#molten2)" stroke-width="38" stroke-linecap="round">
+      <path d="M320,120 C320,164 192,172 192,216 C192,260 320,268 320,312 C320,356 192,364 192,408"/>
+      <path d="M192,120 C192,164 320,172 320,216 C320,260 192,268 192,312 C192,356 320,364 320,408"/>
+    </g>
+    <g fill="#FFD8A6">
+      <circle cx="256" cy="168" r="12"/><circle cx="256" cy="264" r="13"/><circle cx="256" cy="360" r="12"/>
+    </g>
+    <polyline points="120,442 150,416 172,460 200,420 228,452 256,402 284,452 312,420 340,460 362,416 392,442"
+      fill="none" stroke="url(#molten2)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+  </g>
+
+  <g font-family="'Arial Narrow','Helvetica Neue',Impact,sans-serif" font-weight="900">
+    <text x="332" y="132" font-size="66" letter-spacing="4" fill="#F4EDE2">TWIST YOUR</text>
+    <text x="332" y="228" font-size="112" letter-spacing="2" fill="url(#molten2)">GUTS</text>
+  </g>
+  <line x1="334" y1="256" x2="1060" y2="256" stroke="#FF4B2E" stroke-opacity="0.35" stroke-width="2"/>
+  <text x="334" y="282" font-family="'Helvetica Neue',Arial,sans-serif" font-weight="600" font-size="19"
+    letter-spacing="1.5" fill="#B9ADA0">Parallax-style bass split — compress the lows, distort the tops</text>
+</svg>

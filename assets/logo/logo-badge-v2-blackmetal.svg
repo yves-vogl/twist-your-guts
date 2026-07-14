@@ -1,0 +1,59 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Twist Your Guts — black metal sigil badge</title>
+  <desc id="d">A thorned, symmetric ash-white sigil on black with a central spiked knot, a cracked ring, and raw asymmetric blood spatter.</desc>
+  <defs>
+    <filter id="rough" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.017" numOctaves="3" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="10" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0.86  0 0 0 0 0.83  0 0 0 0 0.78  0 0 0 0.6 0"/>
+    </filter>
+    <g id="half">
+      <!-- upper diagonal blade -->
+      <path d="M258,242 C326,204 366,176 412,120 C372,180 330,214 262,260 Z"/>
+      <!-- near-horizontal blade -->
+      <path d="M262,250 C332,236 392,242 456,232 C392,258 332,264 264,270 Z"/>
+      <!-- lower diagonal blade -->
+      <path d="M262,266 C326,302 362,338 404,398 C368,342 328,306 258,272 Z"/>
+      <!-- small barb -->
+      <path d="M300,214 C332,196 352,182 372,160 C352,190 334,206 306,226 Z"/>
+    </g>
+  </defs>
+
+  <rect width="512" height="512" fill="#060505"/>
+  <ellipse cx="256" cy="286" rx="140" ry="176" fill="#7d0a0f" opacity="0.16" filter="url(#soft)"/>
+
+  <!-- cracked ring -->
+  <g fill="none" stroke="#c9c4bb" stroke-width="3" opacity="0.42" filter="url(#rough)">
+    <path d="M120,150 A196,196 0 0 1 392,150"/>
+    <path d="M402,196 A196,196 0 0 1 330,404"/>
+    <path d="M182,404 A196,196 0 0 1 110,196"/>
+  </g>
+
+  <!-- sigil -->
+  <g fill="#E4E0D8" filter="url(#rough)">
+    <use href="#half"/>
+    <use href="#half" transform="matrix(-1,0,0,1,512,0)"/>
+    <!-- central up + down spikes -->
+    <path d="M246,236 L256,54 L266,236 C260,246 252,246 246,236 Z"/>
+    <path d="M249,288 L256,462 L263,288 Z"/>
+    <!-- spiked knot -->
+    <path d="M256,206 L272,244 L312,256 L272,268 L256,306 L240,268 L200,256 L240,244 Z"/>
+    <circle cx="256" cy="256" r="7" fill="#060505"/>
+  </g>
+
+  <!-- raw asymmetric blood -->
+  <g fill="#a20e14">
+    <path d="M262,300 C266,338 258,360 264,398 C270,360 276,338 270,302 Z" opacity="0.9"/>
+    <ellipse cx="266" cy="430" rx="5" ry="11"/>
+    <ellipse cx="252" cy="452" rx="4" ry="8"/>
+    <circle cx="278" cy="470" r="4"/>
+    <circle cx="300" cy="360" r="3.2" opacity="0.8"/>
+    <circle cx="214" cy="392" r="2.6" opacity="0.7"/>
+  </g>
+
+  <rect width="512" height="512" filter="url(#grain)" opacity="0.11"/>
+</svg>
