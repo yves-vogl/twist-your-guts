@@ -28,6 +28,39 @@ TwistYourGutsAudioProcessor::TwistYourGutsAudioProcessor()
     highLevelDb = apvts.getRawParameterValue (ParamIDs::highLevel);
     bypassParameter = apvts.getParameter (ParamIDs::bypass);
 
+    gateEnabled = apvts.getRawParameterValue (ParamIDs::gateEnabled);
+    gateThresholdDb = apvts.getRawParameterValue (ParamIDs::gateThreshold);
+    gateRatio = apvts.getRawParameterValue (ParamIDs::gateRatio);
+    gateAttackMs = apvts.getRawParameterValue (ParamIDs::gateAttack);
+    gateReleaseMs = apvts.getRawParameterValue (ParamIDs::gateRelease);
+
+    lowCompThresholdDb = apvts.getRawParameterValue (ParamIDs::lowCompThreshold);
+    lowCompRatio = apvts.getRawParameterValue (ParamIDs::lowCompRatio);
+    lowCompAttackMs = apvts.getRawParameterValue (ParamIDs::lowCompAttack);
+    lowCompReleaseMs = apvts.getRawParameterValue (ParamIDs::lowCompRelease);
+    lowCompMakeupDb = apvts.getRawParameterValue (ParamIDs::lowCompMakeup);
+    lowCompMixPercent = apvts.getRawParameterValue (ParamIDs::lowCompMix);
+
+    highVoicingChoice = apvts.getRawParameterValue (ParamIDs::highVoicing);
+    highDrivePercent = apvts.getRawParameterValue (ParamIDs::highDrive);
+    highTonePercent = apvts.getRawParameterValue (ParamIDs::highTone);
+    highBlendPercent = apvts.getRawParameterValue (ParamIDs::highBlend);
+
+    eqEnabled = apvts.getRawParameterValue (ParamIDs::eqEnabled);
+    eqLowShelfFreqHz = apvts.getRawParameterValue (ParamIDs::eqLowShelfFreq);
+    eqLowShelfGainDb = apvts.getRawParameterValue (ParamIDs::eqLowShelfGain);
+    eqPeak1FreqHz = apvts.getRawParameterValue (ParamIDs::eqPeak1Freq);
+    eqPeak1GainDb = apvts.getRawParameterValue (ParamIDs::eqPeak1Gain);
+    eqPeak1Q = apvts.getRawParameterValue (ParamIDs::eqPeak1Q);
+    eqPeak2FreqHz = apvts.getRawParameterValue (ParamIDs::eqPeak2Freq);
+    eqPeak2GainDb = apvts.getRawParameterValue (ParamIDs::eqPeak2Gain);
+    eqPeak2Q = apvts.getRawParameterValue (ParamIDs::eqPeak2Q);
+    eqHighShelfFreqHz = apvts.getRawParameterValue (ParamIDs::eqHighShelfFreq);
+    eqHighShelfGainDb = apvts.getRawParameterValue (ParamIDs::eqHighShelfGain);
+
+    irEnabled = apvts.getRawParameterValue (ParamIDs::irEnabled);
+    irMixPercent = apvts.getRawParameterValue (ParamIDs::irMix);
+
     jassert (inputGainDb != nullptr);
     jassert (outputGainDb != nullptr);
     jassert (bypassFlag != nullptr);
@@ -36,6 +69,39 @@ TwistYourGutsAudioProcessor::TwistYourGutsAudioProcessor()
     jassert (lowLevelDb != nullptr);
     jassert (highLevelDb != nullptr);
     jassert (bypassParameter != nullptr);
+
+    jassert (gateEnabled != nullptr);
+    jassert (gateThresholdDb != nullptr);
+    jassert (gateRatio != nullptr);
+    jassert (gateAttackMs != nullptr);
+    jassert (gateReleaseMs != nullptr);
+
+    jassert (lowCompThresholdDb != nullptr);
+    jassert (lowCompRatio != nullptr);
+    jassert (lowCompAttackMs != nullptr);
+    jassert (lowCompReleaseMs != nullptr);
+    jassert (lowCompMakeupDb != nullptr);
+    jassert (lowCompMixPercent != nullptr);
+
+    jassert (highVoicingChoice != nullptr);
+    jassert (highDrivePercent != nullptr);
+    jassert (highTonePercent != nullptr);
+    jassert (highBlendPercent != nullptr);
+
+    jassert (eqEnabled != nullptr);
+    jassert (eqLowShelfFreqHz != nullptr);
+    jassert (eqLowShelfGainDb != nullptr);
+    jassert (eqPeak1FreqHz != nullptr);
+    jassert (eqPeak1GainDb != nullptr);
+    jassert (eqPeak1Q != nullptr);
+    jassert (eqPeak2FreqHz != nullptr);
+    jassert (eqPeak2GainDb != nullptr);
+    jassert (eqPeak2Q != nullptr);
+    jassert (eqHighShelfFreqHz != nullptr);
+    jassert (eqHighShelfGainDb != nullptr);
+
+    jassert (irEnabled != nullptr);
+    jassert (irMixPercent != nullptr);
 }
 
 TwistYourGutsAudioProcessor::~TwistYourGutsAudioProcessor() = default;
@@ -111,10 +177,23 @@ void TwistYourGutsAudioProcessor::prepareToPlay (double sampleRate, int samplesP
     outputGainProcessor.prepare (spec);
     outputGainProcessor.setGainDecibels (outputGainDb->load (std::memory_order_relaxed));
 
+    // Full-band input noise gate.
+    gate.prepare (spec);
+
     // Issue #8: LR4 crossover, prepared for the same spec as the gain
     // processors so its per-channel filter state matches the bus layout.
     crossover.prepare (spec);
     crossover.setCutoffFrequency (crossoverFreqHz->load (std::memory_order_relaxed));
+
+    // Low-band parallel compressor. The DryWetMixer inside needs its mix
+    // proportion primed *before* prepare() runs its internal reset() (JUCE
+    // 8.0.14 gotcha - see docs/architecture.md), so the current lowCompMix
+    // value is read and passed in here rather than set afterwards.
+    lowCompressor.prepare (spec, lowCompMixPercent->load (std::memory_order_relaxed) / 100.0f);
+
+    // High-band oversampled distortion voicing. Same DryWetMixer-priming
+    // requirement for highBlend.
+    highVoicing.prepare (spec, highBlendPercent->load (std::memory_order_relaxed) / 100.0f);
 
     // Issue #10: independent per-band level trims, smoothed the same way as
     // the input/output gains to avoid zipper noise on automation.
@@ -125,6 +204,12 @@ void TwistYourGutsAudioProcessor::prepareToPlay (double sampleRate, int samplesP
     highGainProcessor.setRampDurationSeconds (gainRampDurationSeconds);
     highGainProcessor.prepare (spec);
     highGainProcessor.setGainDecibels (highLevelDb->load (std::memory_order_relaxed));
+
+    // Post-sum 4-band EQ.
+    eq.prepare (spec);
+
+    // IR loader. Same DryWetMixer-priming requirement for irMix.
+    irLoader.prepare (spec, irMixPercent->load (std::memory_order_relaxed) / 100.0f);
 
     // Issue #9: (re)allocate the low-band compensation delay line for the
     // new spec/max-delay bound. setMaximumDelayInSamples() may allocate, so
@@ -146,15 +231,13 @@ void TwistYourGutsAudioProcessor::prepareToPlay (double sampleRate, int samplesP
 //==============================================================================
 int TwistYourGutsAudioProcessor::computeTotalLatencySamples() const noexcept
 {
-    // M3 (oversampling) will replace this stub with the high-band
-    // oversampling filter's reported latency (e.g.
-    // juce::dsp::Oversampling::getLatencyInSamples()) once the high band is
-    // oversampled ahead of the nonlinear voicing stage. Until then the high
-    // band is not delayed relative to the low band, so there is nothing to
-    // compensate for and this legitimately returns 0 - it is a real seam
-    // computing a real (currently zero) value, not a mislabeled no-op.
-    constexpr int highBandOversamplingLatencySamples = 0;
-    return highBandOversamplingLatencySamples;
+    // Issue #42: the high band's oversampled voicing stage is the only
+    // source of latency in the chain (the gate, low-band compressor, EQ and
+    // IR loader - default zero-latency Convolution - are all zero-latency),
+    // so the plugin's total reported latency is exactly the oversampling
+    // latency, and that is exactly what the low-band compensation delay
+    // needs to match to stay time-aligned with the high band at the sum.
+    return highVoicing.getLatencySamples();
 }
 
 void TwistYourGutsAudioProcessor::updateLatencyCompensation()
@@ -163,10 +246,10 @@ void TwistYourGutsAudioProcessor::updateLatencyCompensation()
 
     setLatencySamples (totalLatencySamples);
 
-    // The low band bypasses oversampling entirely, so once M3 lands it must
-    // be delayed by the same amount the high band's oversampling stage
-    // delays the high band, keeping both bands time-aligned when they are
-    // summed back together in processChunk().
+    // The low band bypasses oversampling entirely, so it must be delayed by
+    // the same amount the high band's oversampling stage delays the high
+    // band, keeping both bands time-aligned when they are summed back
+    // together in processChunk().
     lowBandLatencyDelay.setDelay (static_cast<float> (totalLatencySamples));
 }
 
@@ -207,14 +290,40 @@ void TwistYourGutsAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         return;
 
     // Parameters are read once per host block (not per chunk/sample): the
-    // dsp::Gain smoothers and the crossover's cutoff recompute cheaply
-    // enough at control rate, and re-reading the same atomic per chunk would
-    // buy nothing.
+    // dsp::Gain smoothers and the various stages' own control-rate updates
+    // recompute cheaply enough at control rate, and re-reading the same
+    // atomic per chunk would buy nothing.
     inputGainProcessor.setGainDecibels (inputGainDb->load (std::memory_order_relaxed));
     outputGainProcessor.setGainDecibels (outputGainDb->load (std::memory_order_relaxed));
     lowGainProcessor.setGainDecibels (lowLevelDb->load (std::memory_order_relaxed));
     highGainProcessor.setGainDecibels (highLevelDb->load (std::memory_order_relaxed));
     crossover.setCutoffFrequency (crossoverFreqHz->load (std::memory_order_relaxed));
+
+    gate.setEnabled (gateEnabled->load (std::memory_order_relaxed) >= 0.5f);
+    gate.setThresholdDb (gateThresholdDb->load (std::memory_order_relaxed));
+    gate.setRatio (gateRatio->load (std::memory_order_relaxed));
+    gate.setAttackMs (gateAttackMs->load (std::memory_order_relaxed));
+    gate.setReleaseMs (gateReleaseMs->load (std::memory_order_relaxed));
+
+    lowCompressor.setThresholdDb (lowCompThresholdDb->load (std::memory_order_relaxed));
+    lowCompressor.setRatio (lowCompRatio->load (std::memory_order_relaxed));
+    lowCompressor.setAttackMs (lowCompAttackMs->load (std::memory_order_relaxed));
+    lowCompressor.setReleaseMs (lowCompReleaseMs->load (std::memory_order_relaxed));
+    lowCompressor.setMakeupGainDb (lowCompMakeupDb->load (std::memory_order_relaxed));
+    lowCompressor.setWetMixProportion (lowCompMixPercent->load (std::memory_order_relaxed) / 100.0f);
+
+    const auto voicingIndex = static_cast<int> (highVoicingChoice->load (std::memory_order_relaxed));
+    highVoicing.setVoicing (static_cast<tyg::VoicingType> (juce::jlimit (0, 2, voicingIndex)));
+    highVoicing.setDrive (highDrivePercent->load (std::memory_order_relaxed) / 100.0f);
+    highVoicing.setTone (highTonePercent->load (std::memory_order_relaxed) / 100.0f);
+    highVoicing.setWetMixProportion (highBlendPercent->load (std::memory_order_relaxed) / 100.0f);
+
+    eq.setLowShelf (eqLowShelfFreqHz->load (std::memory_order_relaxed), eqLowShelfGainDb->load (std::memory_order_relaxed));
+    eq.setPeak1 (eqPeak1FreqHz->load (std::memory_order_relaxed), eqPeak1GainDb->load (std::memory_order_relaxed), eqPeak1Q->load (std::memory_order_relaxed));
+    eq.setPeak2 (eqPeak2FreqHz->load (std::memory_order_relaxed), eqPeak2GainDb->load (std::memory_order_relaxed), eqPeak2Q->load (std::memory_order_relaxed));
+    eq.setHighShelf (eqHighShelfFreqHz->load (std::memory_order_relaxed), eqHighShelfGainDb->load (std::memory_order_relaxed));
+
+    irLoader.setWetMixProportion (irMixPercent->load (std::memory_order_relaxed) / 100.0f);
 
     juce::dsp::AudioBlock<float> fullBlock (buffer);
 
@@ -239,18 +348,27 @@ void TwistYourGutsAudioProcessor::processChunk (juce::dsp::AudioBlock<float>& ch
 {
     inputGainProcessor.process (juce::dsp::ProcessContextReplacing<float> (chunk));
 
+    // Full-band noise gate, ahead of the crossover split.
+    gate.process (chunk);
+
     const auto numChannels = chunk.getNumChannels();
     const auto numSamples = chunk.getNumSamples();
 
     auto lowBlock = juce::dsp::AudioBlock<float> (lowBandBuffer).getSubBlock (0, numSamples).getSubsetChannelBlock (0, numChannels);
     auto highBlock = juce::dsp::AudioBlock<float> (highBandBuffer).getSubBlock (0, numSamples).getSubsetChannelBlock (0, numChannels);
 
-    // Issue #8: split the input-trimmed signal into low/high bands.
+    // Issue #8: split the input-trimmed, gated signal into low/high bands.
     crossover.process (chunk, lowBlock, highBlock);
 
-    // Issue #9: time-align the low band with the (currently zero) latency
-    // the high band will pick up once M3 adds oversampling ahead of the
-    // nonlinear voicing stage.
+    // Low band: parallel compressor, then level trim.
+    lowCompressor.process (lowBlock);
+
+    // High band: oversampled distortion voicing (Gnaw/Wool/Razor), then
+    // level trim. This is the only source of latency in the chain.
+    highVoicing.process (highBlock);
+
+    // Issue #9: time-align the low band with the latency the high band's
+    // oversampling stage introduces.
     lowBandLatencyDelay.process (juce::dsp::ProcessContextReplacing<float> (lowBlock));
 
     // Issue #10: independent per-band level trims, then sum the bands back
@@ -259,6 +377,17 @@ void TwistYourGutsAudioProcessor::processChunk (juce::dsp::AudioBlock<float>& ch
     highGainProcessor.process (juce::dsp::ProcessContextReplacing<float> (highBlock));
 
     chunk.replaceWithSumOf (lowBlock, highBlock);
+
+    // Post-sum 4-band EQ. Skipped entirely when disabled for a guaranteed
+    // bit-exact bypass rather than relying on all-zero band gains.
+    if (eqEnabled->load (std::memory_order_relaxed) >= 0.5f)
+        eq.process (chunk);
+
+    // Cab-sim IR loader. Skipped entirely when disabled for the same reason
+    // (and safe-by-default even when enabled with no IR loaded yet - see
+    // tyg::IRLoader).
+    if (irEnabled->load (std::memory_order_relaxed) >= 0.5f)
+        irLoader.process (chunk);
 
     // Optional safety clip (issue #10): a soft (tanh) limiter that only
     // engages when the user explicitly enables it, protecting against
@@ -309,6 +438,12 @@ void TwistYourGutsAudioProcessor::setStateInformation (const void* data, int siz
 
     if (xmlState != nullptr && xmlState->hasTagName (apvts.state.getType()))
         apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
+}
+
+//==============================================================================
+void TwistYourGutsAudioProcessor::loadImpulseResponse (juce::AudioBuffer<float> irBuffer, double irSampleRate)
+{
+    irLoader.loadImpulseResponse (std::move (irBuffer), irSampleRate);
 }
 
 //==============================================================================

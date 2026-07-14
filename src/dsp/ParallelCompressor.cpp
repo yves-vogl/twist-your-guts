@@ -1,0 +1,37 @@
+#include "ParallelCompressor.h"
+
+namespace
+{
+    // Matches the ~20ms ramp used for the plugin's other gain stages
+    // (PluginProcessor.cpp's gainRampDurationSeconds).
+    constexpr double makeupGainRampDurationSeconds = 0.02;
+}
+
+namespace tyg
+{
+    void ParallelCompressor::prepare (const juce::dsp::ProcessSpec& spec, float initialWetMixProportion01)
+    {
+        compressor.prepare (spec);
+        makeupGain.setRampDurationSeconds (makeupGainRampDurationSeconds);
+        makeupGain.prepare (spec);
+
+        // Prime the mix *before* prepare() so the mixer's internal reset()
+        // (called at the end of DryWetMixer::prepare()) snaps its smoothed
+        // dry/wet volumes to the correct starting point instead of a stale
+        // default.
+        mixer.setMixingRule (juce::dsp::DryWetMixingRule::linear);
+        mixer.setWetMixProportion (initialWetMixProportion01);
+        mixer.prepare (spec);
+
+        // The compressor and makeup gain add no sample latency, so the
+        // dry path never needs compensating delay.
+        mixer.setWetLatency (0.0f);
+    }
+
+    void ParallelCompressor::reset()
+    {
+        compressor.reset();
+        makeupGain.reset();
+        mixer.reset();
+    }
+}
