@@ -100,16 +100,36 @@ namespace cryp
             juce::AudioParameterFloatAttributes().withLabel ("ms")));
 
         //======================================================================
-        // Crossover
+        // Crossover: two cascaded LR4 splits (v0.2.0 2-band -> 3-band
+        // rebuild - docs/design-brief.md's "Split Low / Split High"
+        // section). splitHighHz's floor (300 Hz) is deliberately above
+        // splitLowHz's own ceiling-minus-gap, and the two are further
+        // clamped at runtime by cryp::clampSplitHighHz() (src/dsp/SplitGap.h)
+        // so splitHighHz can never collapse the Mid band to a degenerate
+        // near-zero width even at the extremes of both ranges.
         layout.add (std::make_unique<juce::AudioParameterFloat> (
-            juce::ParameterID { ParamIDs::crossoverFreq, 1 },
-            "Crossover Frequency",
-            makeLogFrequencyRange (60.0f, 1000.0f),
-            250.0f,
+            juce::ParameterID { ParamIDs::splitLowHz, 1 },
+            "Split Low",
+            makeLogFrequencyRange (60.0f, 400.0f),
+            120.0f,
+            juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
+        layout.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { ParamIDs::splitHighHz, 1 },
+            "Split High",
+            makeLogFrequencyRange (300.0f, 2000.0f),
+            600.0f,
             juce::AudioParameterFloatAttributes().withLabel ("Hz")));
 
         //======================================================================
-        // Low band: compressor + level
+        // Low band: compressor + level. v0.2.0 re-sources the ballistics
+        // defaults to the reference class's own fixed "glue" bus-compressor
+        // values (ratio 2.0 / attack 3ms / release 6ms - docs/design-brief.md,
+        // docs/research-notes.md §3); the release range floor is lowered
+        // from 10ms to 5ms (breaking change, acceptable pre-1.0) so the
+        // sourced 6ms default is reachable. Threshold/makeup/mix/level
+        // ranges and defaults are unchanged from v1 - no source contradicts
+        // them.
         layout.add (std::make_unique<juce::AudioParameterFloat> (
             juce::ParameterID { ParamIDs::lowCompThreshold, 1 },
             "Low Comp Threshold",
@@ -121,21 +141,21 @@ namespace cryp
             juce::ParameterID { ParamIDs::lowCompRatio, 1 },
             "Low Comp Ratio",
             juce::NormalisableRange<float> (1.0f, 20.0f, 0.01f),
-            4.0f,
+            2.0f,
             juce::AudioParameterFloatAttributes().withLabel (":1")));
 
         layout.add (std::make_unique<juce::AudioParameterFloat> (
             juce::ParameterID { ParamIDs::lowCompAttack, 1 },
             "Low Comp Attack",
             makeLogTimeRange (0.1f, 100.0f),
-            10.0f,
+            3.0f,
             juce::AudioParameterFloatAttributes().withLabel ("ms")));
 
         layout.add (std::make_unique<juce::AudioParameterFloat> (
             juce::ParameterID { ParamIDs::lowCompRelease, 1 },
             "Low Comp Release",
-            makeLogTimeRange (10.0f, 1000.0f),
-            120.0f,
+            makeLogTimeRange (5.0f, 1000.0f),
+            6.0f,
             juce::AudioParameterFloatAttributes().withLabel ("ms")));
 
         layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -160,7 +180,33 @@ namespace cryp
             juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
         //======================================================================
-        // High band: voicing + drive + tone + blend + level
+        // Mid band (NEW in v0.2.0): drive + level only - no filter/tone/
+        // blend, matching the reference class's own Mid band exactly
+        // (docs/design-brief.md's "Mid band" section).
+        layout.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { ParamIDs::midDrive, 1 },
+            "Mid Drive",
+            juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f),
+            30.0f,
+            juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+        layout.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { ParamIDs::midLevel, 1 },
+            "Mid Level",
+            juce::NormalisableRange<float> (-24.0f, 12.0f, 0.01f),
+            0.0f,
+            juce::AudioParameterFloatAttributes().withLabel ("dB")));
+
+        //======================================================================
+        // High band: Tight (NEW in v0.2.0) + voicing + drive + tone + blend
+        // + level
+        layout.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { ParamIDs::highTightHz, 1 },
+            "High Tight",
+            makeLogFrequencyRange (20.0f, 500.0f),
+            100.0f,
+            juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
         layout.add (std::make_unique<juce::AudioParameterChoice> (
             juce::ParameterID { ParamIDs::highVoicing, 1 },
             "High Voicing",
@@ -196,7 +242,15 @@ namespace cryp
             juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
         //======================================================================
-        // Post-sum 4-band EQ (LowShelf / Peak / Peak / HighShelf)
+        // Post-sum 4-band EQ (LowShelf / Peak / Peak / HighShelf). v0.2.0
+        // re-anchors the default corner frequencies to the sourced
+        // bass-tone-stack frequency set from the same design lineage as the
+        // reference class (80 / 500 / 2800 / 5000 Hz - docs/research-notes.md
+        // §6); v1's 100/500/2500/8000 Hz defaults were unsourced
+        // placeholders. Gain/Q ranges and defaults are unchanged - the EQ
+        // ships off by default either way, so this is a dormant-until-engaged
+        // anchor change, not an audible v1->v2 difference unless a user (or
+        // factory preset) turns the EQ on.
         layout.add (std::make_unique<juce::AudioParameterBool> (
             juce::ParameterID { ParamIDs::eqEnabled, 1 },
             "EQ Enable",
@@ -206,7 +260,7 @@ namespace cryp
             juce::ParameterID { ParamIDs::eqLowShelfFreq, 1 },
             "EQ Low Shelf Frequency",
             makeLogFrequencyRange (40.0f, 400.0f),
-            100.0f,
+            80.0f,
             juce::AudioParameterFloatAttributes().withLabel ("Hz")));
 
         layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -241,7 +295,7 @@ namespace cryp
             juce::ParameterID { ParamIDs::eqPeak2Freq, 1 },
             "EQ Peak 2 Frequency",
             makeLogFrequencyRange (500.0f, 8000.0f),
-            2500.0f,
+            2800.0f,
             juce::AudioParameterFloatAttributes().withLabel ("Hz")));
 
         layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -262,7 +316,7 @@ namespace cryp
             juce::ParameterID { ParamIDs::eqHighShelfFreq, 1 },
             "EQ High Shelf Frequency",
             makeLogFrequencyRange (2000.0f, 16000.0f),
-            8000.0f,
+            5000.0f,
             juce::AudioParameterFloatAttributes().withLabel ("Hz")));
 
         layout.add (std::make_unique<juce::AudioParameterFloat> (

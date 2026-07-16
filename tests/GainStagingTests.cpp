@@ -15,18 +15,25 @@ namespace
     constexpr double testSampleRate = 48000.0;
     constexpr int testBlockSize = 512;
 
-    // Well below/above the 250 Hz crossoverFreq default, with margin so
-    // filter roll-off near the crossover point doesn't leak the "wrong"
-    // band's attenuation into the measurement.
-    constexpr double lowProbeFrequencyHz = 80.0;
+    // Well below Split Low (120 Hz default) / well above Split High (600 Hz
+    // default), with margin so filter roll-off near either crossover point
+    // doesn't leak the "wrong" band's attenuation into the measurement. v0.1.x
+    // used an 80 Hz low probe (safely ~1.6 octaves below v1's 250 Hz single
+    // crossover); v0.2.0's new splitLowHz default (120 Hz) is much closer to
+    // 80 Hz (only ~0.58 octaves - ~14 dB of LR4 stopband rejection), which
+    // measurably leaked into the Mid/High branch and polluted the
+    // differential-attenuation measurement below. 30 Hz sits a full 2 octaves
+    // below the 120 Hz default (~48 dB rejection), restoring the clean
+    // separation the original 80 Hz probe relied on.
+    constexpr double lowProbeFrequencyHz = 30.0;
     constexpr double highProbeFrequencyHz = 4000.0;
 
     // Runs 12 blocks of a steady, phase-continuous sine at `probeFrequencyHz`
     // through the processor (already prepared and parameterised by the
     // caller) and returns the RMS level, in dB relative to full scale, of
     // the last block once smoothing/filter transients have settled. Phase
-    // must stay continuous across the block boundaries: the LR4 crossover
-    // is a stateful IIR filter, so restarting the sine at phase zero every
+    // must stay continuous across the block boundaries: the LR4 crossovers
+    // are stateful IIR filters, so restarting the sine at phase zero every
     // block would inject a small broadband transient at each boundary and
     // pollute the level measurement.
     // Since issue #42 wired the low-band parallel compressor and high-band
@@ -34,19 +41,29 @@ namespace
     // level-transparent at their *default* parameters (lowCompMix defaults
     // to 100% wet with a -18dB threshold that a 0.5-amplitude probe tone
     // sits well above; highBlend defaults to 100% wet Gnaw hard-clip
-    // distortion) - that's by design, not a regression. These tests are
-    // about the lowLevel/highLevel *trim* controls, not compressor/voicing
-    // character (which get their own dedicated tests), so both stages'
-    // blend controls are pulled to 0% (fully dry) up front to isolate the
-    // level-trim behaviour being tested.
+    // distortion) - that's by design, not a regression. v0.2.0 adds a Mid
+    // band with a non-zero default Drive (30%) too, though neither probe
+    // frequency below falls inside the Mid band's passband by default - it
+    // is neutralised anyway for the same isolation reasoning, since a
+    // moved splitLowHz/splitHighHz.
+    // These tests are about the lowLevel/highLevel *trim* controls, not
+    // compressor/voicing/drive character (which get their own dedicated
+    // tests), so all three bands' blend/drive controls are pulled to 0%
+    // (fully dry/transparent) up front to isolate the level-trim behaviour
+    // being tested.
     void neutralizeDynamicsAndVoicing (CryptaAudioProcessor& processor)
     {
         auto* lowCompMixParam = processor.apvts.getParameter (ParamIDs::lowCompMix);
+        auto* midDriveParam = processor.apvts.getParameter (ParamIDs::midDrive);
         auto* highBlendParam = processor.apvts.getParameter (ParamIDs::highBlend);
         REQUIRE (lowCompMixParam != nullptr);
+        REQUIRE (midDriveParam != nullptr);
         REQUIRE (highBlendParam != nullptr);
 
         lowCompMixParam->setValueNotifyingHost (lowCompMixParam->convertTo0to1 (0.0f));
+        // MidBand's 0% drive is an exact passthrough by construction (see
+        // cryp::MidBand's class docs) - no separate blend control to zero.
+        midDriveParam->setValueNotifyingHost (midDriveParam->convertTo0to1 (0.0f));
         highBlendParam->setValueNotifyingHost (highBlendParam->convertTo0to1 (0.0f));
     }
 

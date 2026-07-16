@@ -35,11 +35,18 @@ namespace ParamIDs
     inline constexpr auto gateRelease = "gateRelease";
 
     //==============================================================================
-    // Crossover (Linkwitz-Riley 4th order split point)
-    inline constexpr auto crossoverFreq = "crossoverFreq";
+    // Crossover (two cascaded Linkwitz-Riley 4th order splits, v0.2.0
+    // 2-band -> 3-band rebuild - docs/design-brief.md's "Topology" section).
+    // The v1 single `crossoverFreq` ID is retired (breaking change,
+    // acceptable pre-1.0 per the brief's Versioning section); old sessions
+    // are migrated in CryptaAudioProcessor::setStateInformation() - see
+    // its migrateLegacySingleCrossover() helper.
+    inline constexpr auto splitLowHz = "splitLowHz";
+    inline constexpr auto splitHighHz = "splitHighHz";
 
     //==============================================================================
-    // Low band: compressor + level
+    // Low band: compressor + level (ballistics re-sourced in v0.2.0, IDs/
+    // structure unchanged from v1)
     inline constexpr auto lowCompThreshold = "lowCompThreshold";
     inline constexpr auto lowCompRatio = "lowCompRatio";
     inline constexpr auto lowCompAttack = "lowCompAttack";
@@ -49,7 +56,16 @@ namespace ParamIDs
     inline constexpr auto lowLevel = "lowLevel";
 
     //==============================================================================
-    // High band: voicing + drive + tone + blend + level
+    // Mid band (NEW in v0.2.0): drive + level only - no filter/tone/blend,
+    // matching the reference class's own Mid band exactly (docs/design-brief.md).
+    inline constexpr auto midDrive = "midDrive";
+    inline constexpr auto midLevel = "midLevel";
+
+    //==============================================================================
+    // High band: Tight (NEW in v0.2.0 - promoted from a Razor-only fixed
+    // internal constant to a first-class, voicing-independent control) +
+    // voicing + drive + tone + blend + level
+    inline constexpr auto highTightHz = "highTightHz";
     inline constexpr auto highVoicing = "highVoicing";
     inline constexpr auto highDrive = "highDrive";
     inline constexpr auto highTone = "highTone";

@@ -1,0 +1,20 @@
+{
+    "format": "basilica-preset-1",
+    "plugin": "com.yvesvogl.crypta",
+    "pluginVersion": "0.2.0",
+    "name": "Default",
+    "category": "Init",
+    "parameters": {
+        "splitLowHz": 120.0,
+        "splitHighHz": 600.0,
+        "lowCompRatio": 2.0,
+        "lowCompAttack": 3.0,
+        "lowCompRelease": 6.0,
+        "lowCompMix": 100.0,
+        "midDrive": 30.0,
+        "highTightHz": 100.0,
+        "highVoicing": 0.0,
+        "highDrive": 50.0,
+        "highBlend": 100.0
+    }
+}

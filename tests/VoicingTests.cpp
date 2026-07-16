@@ -256,6 +256,62 @@ TEST_CASE ("Voicing: setVoicing() resets midFilter state instead of ringing a co
     CHECK (ratio < 2.35);
 }
 
+TEST_CASE ("Voicing: Tight (highTightHz) attenuates low frequencies monotonically, identically for every voicing", "[voicing][dsp][tight]")
+{
+    // docs/design-brief.md's Guarantee #5: Tight was promoted from a
+    // Razor-only fixed 200Hz internal constant to a first-class,
+    // voicing-independent control (v0.2.0) - this closes the gap identified
+    // in the brief's "Why v1 falls short" #3 by asserting the sweep behaves
+    // identically across all three voicings, not just Razor.
+    //
+    // The probe sits well below every swept Tight setting (including the
+    // 20 Hz floor) so it stays in the HPF's stopband-widening regime across
+    // the *entire* sweep, giving a clean monotonic attenuation trend rather
+    // than only a partial one; a dedicated, larger local buffer (not the
+    // file's shared 2048-sample numSamples) gives this specific probe
+    // frequency enough periods to settle/measure reliably.
+    constexpr double lowProbeFrequencyHz = 15.0;
+    constexpr int tightSweepNumSamples = 16384;
+
+    const float tightSweepHz[] = { 20.0f, 60.0f, 100.0f, 150.0f, 250.0f, 400.0f, 500.0f };
+
+    for (const auto voicingType : allVoicings)
+    {
+        double previousRms = std::numeric_limits<double>::infinity();
+
+        for (const auto tightHz : tightSweepHz)
+        {
+            cryp::Voicing voicing;
+
+            juce::dsp::ProcessSpec sweepSpec;
+            sweepSpec.sampleRate = testSampleRate;
+            sweepSpec.maximumBlockSize = static_cast<juce::uint32> (tightSweepNumSamples);
+            sweepSpec.numChannels = 1;
+
+            voicing.prepare (sweepSpec, 1.0f); // fully wet so Tight's effect reaches the output
+            voicing.setVoicing (voicingType);
+            voicing.setTightHz (tightHz);
+            voicing.setDrive (0.3f); // fixed, moderate drive
+            voicing.setTone (1.0f);  // tone filter's pole near Nyquist, minimal own contribution
+
+            juce::AudioBuffer<float> buffer (1, tightSweepNumSamples);
+            TestHelpers::fillWithSine (buffer, testSampleRate, lowProbeFrequencyHz, 0.7f);
+
+            juce::dsp::AudioBlock<float> block (buffer);
+            voicing.process (block);
+
+            const auto rms = TestHelpers::rms (buffer);
+
+            INFO ("voicing index = " << static_cast<int> (voicingType) << ", tightHz = " << tightHz);
+            // Monotonically non-increasing as Tight rises (more attenuation
+            // of the fixed low-frequency probe) - small numerical margin for
+            // floating-point noise at adjacent sweep steps.
+            CHECK (rms <= previousRms + 1.0e-6);
+            previousRms = rms;
+        }
+    }
+}
+
 TEST_CASE ("Voicing: switching voicing mid-stream never produces NaN/Inf", "[voicing][dsp][robustness]")
 {
     cryp::Voicing voicing;

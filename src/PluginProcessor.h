@@ -6,17 +6,23 @@
 #include "dsp/BandEQ.h"
 #include "dsp/Crossover.h"
 #include "dsp/IRLoader.h"
+#include "dsp/MidBand.h"
 #include "dsp/NoiseGateStage.h"
 #include "dsp/ParallelCompressor.h"
+#include "dsp/PhaseAlignFilter.h"
 #include "dsp/Voicing.h"
+#include "presets/PresetManager.h"
 
-// As of the M1 "DSP completion" milestone (issue #42), the full v1.0 signal
-// path from the README is wired and live: input trim -> noise gate -> LR4
-// crossover split -> [low: parallel compressor -> level] + [high: voicing
-// (Gnaw/Wool/Razor, oversampled) -> level] -> delay-compensated sum ->
-// 4-band EQ -> IR loader (cab sim) -> optional safety clip -> output trim.
-// See docs/architecture.md for the full breakdown and docs/manual.md for the
-// user-facing parameter reference.
+// v0.2.0 "deep-dive" rebuild (docs/design-brief.md): the v1.0 2-band
+// (low/high) topology is now a cascaded 3-band split (low/mid/high). Full
+// signal path: input trim -> noise gate -> LR4 split #1 (Split Low) ->
+//   [low: parallel compressor -> level] +
+//   [remainder -> LR4 split #2 (Split High) ->
+//     [mid: drive -> level] + [high: Tight HPF -> voicing -> drive -> tone
+//     -> blend -> level] -> sum -> IR loader (cab sim, Mid+High only)] ->
+// delay-compensated sum (low + [mid+high post-IR]) -> 4-band EQ -> optional
+// safety clip -> output trim. See docs/architecture.md for the full
+// breakdown and docs/manual.md for the user-facing parameter reference.
 class CryptaAudioProcessor final : public juce::AudioProcessor
 {
 public:
@@ -70,74 +76,129 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    // M2 preset system (.scaffold/specs/preset-system-m2.md,
+    // docs/preset-system-notes.md replication recipe from basilica-audio/
+    // nave's pilot implementation). Declared after apvts - construction
+    // order follows declaration order, and PresetManager's constructor reads
+    // apvts.processor.getParameters(), so apvts must already be fully built.
+    basilica::presets::PresetManager presetManager;
+
     // Loads a new cab-sim impulse response into the IR loader stage. Not
     // real-time safe by contract (see cryp::IRLoader) - call from the message
     // thread only (e.g. in response to a future GUI file picker or preset
     // load), never from processBlock() or any audio-thread callback.
     void loadImpulseResponse (juce::AudioBuffer<float> irBuffer, double irSampleRate);
 
+    // Test-only observability seam (docs/design-brief.md guarantee #3: "Low
+    // band never reaches the IR loader"). When non-null, processChunk()
+    // copies the Low band's own fully-processed (post-compressor, post-
+    // lowLevel, post-phase-align, pre-final-sum, pre-delay-compensation)
+    // output into this buffer every chunk - letting a test assert that content is bit-exact
+    // identical whether the (relocated, Mid+High-only) IR loader is enabled
+    // or not, which the full processBlock() output alone can't isolate
+    // cleanly (finite LR4 stopband leakage of low-frequency content into the
+    // Mid/High branch means even an unrelated IR-loader change nudges the
+    // *combined* output by a measurable, if tiny, amount). Intended for
+    // single-chunk test scenarios only (buffer size <= the size promised to
+    // prepareToPlay()); no production code path ever sets this. Not real-time
+    // safe to *set* (call only from the message thread, before processBlock()
+    // runs) - reading/writing the pointed-to buffer from inside processChunk()
+    // itself performs no allocation, so it is safe to leave set while
+    // processBlock() runs in a test.
+    void setLowBandIsolationCaptureForTests (juce::AudioBuffer<float>* captureBuffer) noexcept
+    {
+        lowBandIsolationCaptureForTests = captureBuffer;
+    }
+
 private:
     //==============================================================================
     // Latency-compensation seam (issue #9): computes the plugin's total
-    // reported latency (now the high-band voicing's oversampling latency,
-    // issue #42) and re-arms the low-band compensation delay to match it.
-    // Called once from prepareToPlay().
+    // reported latency (the Mid+High branch's shared oversampling latency -
+    // see computeTotalLatencySamples()) and re-arms the low-band
+    // compensation delay to match. Called once from prepareToPlay().
     int computeTotalLatencySamples() const noexcept;
     void updateLatencyCompensation();
 
-    // Processes at most `preparedBlockSize` samples: gate, crossover split,
-    // per-band dynamics/voicing, per-band level, sum, EQ, IR loader,
-    // optional safety clip. Called once per chunk from processBlock() so
-    // oversized host blocks (larger than prepareToPlay promised) are handled
-    // defensively without ever resizing a buffer on the audio thread.
+    // Processes at most `preparedBlockSize` samples: gate, two cascaded LR4
+    // crossover splits, per-band dynamics/drive/voicing, per-band level,
+    // Mid+High sum, IR loader, final sum, EQ, optional safety clip. Called
+    // once per chunk from processBlock() so oversized host blocks (larger
+    // than prepareToPlay promised) are handled defensively without ever
+    // resizing a buffer on the audio thread.
     void processChunk (juce::dsp::AudioBlock<float>& chunk) noexcept;
 
     //==============================================================================
     juce::dsp::Gain<float> inputGainProcessor;
     juce::dsp::Gain<float> outputGainProcessor;
 
-    // Full-band input noise gate, ahead of the crossover split.
+    // Full-band input noise gate, ahead of the crossover splits.
     cryp::NoiseGateStage gate;
 
-    // Issue #8: LR4 crossover splitting the (input-trimmed, gated) signal
-    // into low and high bands ahead of independent per-band processing.
-    cryp::Crossover crossover;
+    // v0.2.0: two cascaded LR4 crossovers replace v1's single split.
+    // lowSplit peels off the Low band; midHighSplit further splits the
+    // remainder into Mid and High - the exact "cascaded (not parallel) LR4"
+    // pattern docs/design-brief.md's Topology section specifies.
+    cryp::Crossover lowSplit;
+    cryp::Crossover midHighSplit;
+
+    // v0.2.0: compensates the Low band for midHighSplit's own phase shift so
+    // the three-way sum is flat-magnitude, not just each individual
+    // crossover stage - see src/dsp/PhaseAlignFilter.h's class docs for the
+    // exact algebraic proof of why this is required for a *cascaded* N-way
+    // LR4 crossover (unlike a single 2-way split, which is flat by
+    // construction with no compensation needed).
+    cryp::PhaseAlignFilter lowBandPhaseAlign;
 
     // Low band: parallel compressor, then level trim.
     cryp::ParallelCompressor lowCompressor;
 
-    // High band: selectable oversampled distortion voicing (Gnaw/Wool/
-    // Razor), then level trim.
+    // Mid band (NEW in v0.2.0): staged/cascaded drive only, then level trim.
+    cryp::MidBand midBand;
+
+    // High band: Tight pre-drive HPF (now voicing-independent) + selectable
+    // oversampled distortion voicing (Gnaw/Wool/Razor), then level trim.
     cryp::Voicing highVoicing;
 
-    // Issue #10: independent per-band level trims applied after each band's
-    // dynamics/voicing processing and before the bands are summed back
-    // together.
+    // Per-band level trims applied after each band's own dynamics/drive/
+    // voicing processing and before the bands are summed back together.
     juce::dsp::Gain<float> lowGainProcessor;
+    juce::dsp::Gain<float> midGainProcessor;
     juce::dsp::Gain<float> highGainProcessor;
 
-    // Post-sum 4-band EQ and cab-sim IR loader.
+    // Post-sum 4-band EQ and cab-sim IR loader. v0.2.0 relocates the IR
+    // loader: it now processes the Mid+High post-sum signal only, never the
+    // Low band (docs/design-brief.md's "IR loader" section) - structurally
+    // enforced in processChunk() below, not just by convention.
     cryp::BandEQ eq;
     cryp::IRLoader irLoader;
 
     // Issue #9: upper bound on the latency this plugin will ever need to
-    // compensate for, i.e. the largest oversampling latency the high-band
-    // voicing stage is expected to introduce. Generous headroom well above
-    // the actual 4x-oversampling FIR latency at any supported sample rate,
-    // at negligible memory cost.
+    // compensate for, i.e. the largest oversampling latency the Mid+High
+    // branch is expected to introduce. Generous headroom well above the
+    // actual 4x-oversampling FIR latency at any supported sample rate, at
+    // negligible memory cost.
     static constexpr int maxLatencyCompensationSamples = 4096;
 
-    // Delays the low band so it stays time-aligned with the oversampled high
-    // band. None-interpolation is correct here: latency compensation is
-    // always an integer number of samples, never a fractionally modulated
-    // delay.
+    // Delays the low band so it stays time-aligned with the oversampled
+    // Mid+High branch. None-interpolation is correct here: latency
+    // compensation is always an integer number of samples, never a
+    // fractionally modulated delay.
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::None> lowBandLatencyDelay { maxLatencyCompensationSamples };
 
     // Pre-allocated band buffers, sized to `preparedBlockSize` in
-    // prepareToPlay(). Never resized in processBlock().
+    // prepareToPlay(). Never resized in processBlock(). remainderBandBuffer
+    // holds lowSplit's high output (Mid+High content) ahead of midHighSplit;
+    // midHighSumBuffer holds the Mid+High sum ahead of the IR loader and the
+    // final low+midHigh sum.
     juce::AudioBuffer<float> lowBandBuffer;
+    juce::AudioBuffer<float> remainderBandBuffer;
+    juce::AudioBuffer<float> midBandBuffer;
     juce::AudioBuffer<float> highBandBuffer;
+    juce::AudioBuffer<float> midHighSumBuffer;
     int preparedBlockSize = 0;
+
+    // See setLowBandIsolationCaptureForTests() above. Null in production.
+    juce::AudioBuffer<float>* lowBandIsolationCaptureForTests = nullptr;
 
     // Raw atomic pointers into the APVTS-managed parameter values, resolved
     // once at construction time so processBlock() never has to search for
@@ -146,8 +207,10 @@ private:
     std::atomic<float>* outputGainDb = nullptr;
     std::atomic<float>* bypassFlag = nullptr;
     std::atomic<float>* outputClipEnabled = nullptr;
-    std::atomic<float>* crossoverFreqHz = nullptr;
+    std::atomic<float>* splitLowHzParam = nullptr;
+    std::atomic<float>* splitHighHzParam = nullptr;
     std::atomic<float>* lowLevelDb = nullptr;
+    std::atomic<float>* midLevelDb = nullptr;
     std::atomic<float>* highLevelDb = nullptr;
 
     std::atomic<float>* gateEnabled = nullptr;
@@ -163,6 +226,9 @@ private:
     std::atomic<float>* lowCompMakeupDb = nullptr;
     std::atomic<float>* lowCompMixPercent = nullptr;
 
+    std::atomic<float>* midDrivePercent = nullptr;
+
+    std::atomic<float>* highTightHzParam = nullptr;
     std::atomic<float>* highVoicingChoice = nullptr;
     std::atomic<float>* highDrivePercent = nullptr;
     std::atomic<float>* highTonePercent = nullptr;

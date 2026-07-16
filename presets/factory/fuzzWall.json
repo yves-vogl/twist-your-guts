@@ -1,0 +1,17 @@
+{
+    "format": "basilica-preset-1",
+    "plugin": "com.yvesvogl.crypta",
+    "pluginVersion": "0.2.0",
+    "name": "Fuzz Wall",
+    "category": "Bass",
+    "parameters": {
+        "splitLowHz": 130.0,
+        "splitHighHz": 550.0,
+        "lowCompRatio": 2.0,
+        "midDrive": 25.0,
+        "highTightHz": 100.0,
+        "highVoicing": 1.0,
+        "highDrive": 85.0,
+        "highBlend": 100.0
+    }
+}

@@ -62,29 +62,30 @@ TEST_CASE ("Processor instantiates with the expected parameters", "[processor][p
     SECTION ("all documented parameter IDs resolve")
     {
         static constexpr const char* allIds[] = {
-            ParamIDs::inputGain,       ParamIDs::outputGain,      ParamIDs::bypass,
-            ParamIDs::outputClip,      ParamIDs::gateEnabled,     ParamIDs::gateThreshold,
-            ParamIDs::gateRatio,       ParamIDs::gateAttack,      ParamIDs::gateRelease,
-            ParamIDs::crossoverFreq,   ParamIDs::lowCompThreshold, ParamIDs::lowCompRatio,
-            ParamIDs::lowCompAttack,   ParamIDs::lowCompRelease,  ParamIDs::lowCompMakeup,
-            ParamIDs::lowCompMix,      ParamIDs::lowLevel,        ParamIDs::highVoicing,
-            ParamIDs::highDrive,       ParamIDs::highTone,        ParamIDs::highBlend,
-            ParamIDs::highLevel,       ParamIDs::eqEnabled,       ParamIDs::eqLowShelfFreq,
-            ParamIDs::eqLowShelfGain,  ParamIDs::eqPeak1Freq,     ParamIDs::eqPeak1Gain,
-            ParamIDs::eqPeak1Q,        ParamIDs::eqPeak2Freq,     ParamIDs::eqPeak2Gain,
-            ParamIDs::eqPeak2Q,        ParamIDs::eqHighShelfFreq, ParamIDs::eqHighShelfGain,
-            ParamIDs::irEnabled,       ParamIDs::irMix,
+            ParamIDs::inputGain,        ParamIDs::outputGain,       ParamIDs::bypass,
+            ParamIDs::outputClip,       ParamIDs::gateEnabled,      ParamIDs::gateThreshold,
+            ParamIDs::gateRatio,        ParamIDs::gateAttack,       ParamIDs::gateRelease,
+            ParamIDs::splitLowHz,       ParamIDs::splitHighHz,      ParamIDs::lowCompThreshold,
+            ParamIDs::lowCompRatio,     ParamIDs::lowCompAttack,    ParamIDs::lowCompRelease,
+            ParamIDs::lowCompMakeup,    ParamIDs::lowCompMix,       ParamIDs::lowLevel,
+            ParamIDs::midDrive,         ParamIDs::midLevel,         ParamIDs::highTightHz,
+            ParamIDs::highVoicing,      ParamIDs::highDrive,        ParamIDs::highTone,
+            ParamIDs::highBlend,        ParamIDs::highLevel,        ParamIDs::eqEnabled,
+            ParamIDs::eqLowShelfFreq,   ParamIDs::eqLowShelfGain,   ParamIDs::eqPeak1Freq,
+            ParamIDs::eqPeak1Gain,      ParamIDs::eqPeak1Q,         ParamIDs::eqPeak2Freq,
+            ParamIDs::eqPeak2Gain,      ParamIDs::eqPeak2Q,         ParamIDs::eqHighShelfFreq,
+            ParamIDs::eqHighShelfGain,  ParamIDs::irEnabled,        ParamIDs::irMix,
         };
 
         for (const auto* id : allIds)
             CHECK (apvts.getParameter (id) != nullptr);
     }
 
-    SECTION ("total parameter count matches the full v1.0 layout")
+    SECTION ("total parameter count matches the full v0.2.0 3-band layout")
     {
-        // 4 IO/global + 5 gate + 1 crossover + 7 low band + 5 high band
-        // + 11 EQ + 2 IR = 35.
-        CHECK (apvts.processor.getParameters().size() == 35);
+        // 4 IO/global + 5 gate + 2 crossover + 7 low band + 2 mid band
+        // + 6 high band + 11 EQ + 2 IR = 39.
+        CHECK (apvts.processor.getParameters().size() == 39);
     }
 
     SECTION ("IO / global defaults")
@@ -112,18 +113,21 @@ TEST_CASE ("Processor instantiates with the expected parameters", "[processor][p
         checkFloatRange (apvts, ParamIDs::gateRelease, 5.0f, 500.0f);
     }
 
-    SECTION ("crossover defaults and range")
+    SECTION ("crossover defaults and ranges (two cascaded LR4 splits, v0.2.0)")
     {
-        checkFloatDefault (apvts, ParamIDs::crossoverFreq, 250.0f);
-        checkFloatRange (apvts, ParamIDs::crossoverFreq, 60.0f, 1000.0f);
+        checkFloatDefault (apvts, ParamIDs::splitLowHz, 120.0f);
+        checkFloatRange (apvts, ParamIDs::splitLowHz, 60.0f, 400.0f);
+
+        checkFloatDefault (apvts, ParamIDs::splitHighHz, 600.0f);
+        checkFloatRange (apvts, ParamIDs::splitHighHz, 300.0f, 2000.0f);
     }
 
-    SECTION ("low band defaults and ranges")
+    SECTION ("low band defaults and ranges (v0.2.0 re-sourced glue-compressor ballistics)")
     {
         checkFloatDefault (apvts, ParamIDs::lowCompThreshold, -18.0f);
-        checkFloatDefault (apvts, ParamIDs::lowCompRatio, 4.0f);
-        checkFloatDefault (apvts, ParamIDs::lowCompAttack, 10.0f);
-        checkFloatDefault (apvts, ParamIDs::lowCompRelease, 120.0f);
+        checkFloatDefault (apvts, ParamIDs::lowCompRatio, 2.0f);
+        checkFloatDefault (apvts, ParamIDs::lowCompAttack, 3.0f);
+        checkFloatDefault (apvts, ParamIDs::lowCompRelease, 6.0f);
         checkFloatDefault (apvts, ParamIDs::lowCompMakeup, 0.0f);
         checkFloatDefault (apvts, ParamIDs::lowCompMix, 100.0f);
         checkFloatDefault (apvts, ParamIDs::lowLevel, 0.0f);
@@ -131,13 +135,22 @@ TEST_CASE ("Processor instantiates with the expected parameters", "[processor][p
         checkFloatRange (apvts, ParamIDs::lowCompThreshold, -60.0f, 0.0f);
         checkFloatRange (apvts, ParamIDs::lowCompRatio, 1.0f, 20.0f);
         checkFloatRange (apvts, ParamIDs::lowCompAttack, 0.1f, 100.0f);
-        checkFloatRange (apvts, ParamIDs::lowCompRelease, 10.0f, 1000.0f);
+        checkFloatRange (apvts, ParamIDs::lowCompRelease, 5.0f, 1000.0f);
         checkFloatRange (apvts, ParamIDs::lowCompMakeup, -12.0f, 24.0f);
         checkFloatRange (apvts, ParamIDs::lowCompMix, 0.0f, 100.0f);
         checkFloatRange (apvts, ParamIDs::lowLevel, -24.0f, 12.0f);
     }
 
-    SECTION ("high band defaults and ranges, including the voicing choice")
+    SECTION ("mid band defaults and ranges (NEW in v0.2.0)")
+    {
+        checkFloatDefault (apvts, ParamIDs::midDrive, 30.0f);
+        checkFloatDefault (apvts, ParamIDs::midLevel, 0.0f);
+
+        checkFloatRange (apvts, ParamIDs::midDrive, 0.0f, 100.0f);
+        checkFloatRange (apvts, ParamIDs::midLevel, -24.0f, 12.0f);
+    }
+
+    SECTION ("high band defaults and ranges, including Tight (NEW) and the voicing choice")
     {
         auto* voicingParam = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (ParamIDs::highVoicing));
         REQUIRE (voicingParam != nullptr);
@@ -147,30 +160,32 @@ TEST_CASE ("Processor instantiates with the expected parameters", "[processor][p
         CHECK (voicingParam->choices[2] == juce::String ("Razor"));
         CHECK (voicingParam->getIndex() == 0);
 
+        checkFloatDefault (apvts, ParamIDs::highTightHz, 100.0f);
         checkFloatDefault (apvts, ParamIDs::highDrive, 50.0f);
         checkFloatDefault (apvts, ParamIDs::highTone, 50.0f);
         checkFloatDefault (apvts, ParamIDs::highBlend, 100.0f);
         checkFloatDefault (apvts, ParamIDs::highLevel, 0.0f);
 
+        checkFloatRange (apvts, ParamIDs::highTightHz, 20.0f, 500.0f);
         checkFloatRange (apvts, ParamIDs::highDrive, 0.0f, 100.0f);
         checkFloatRange (apvts, ParamIDs::highTone, 0.0f, 100.0f);
         checkFloatRange (apvts, ParamIDs::highBlend, 0.0f, 100.0f);
         checkFloatRange (apvts, ParamIDs::highLevel, -24.0f, 12.0f);
     }
 
-    SECTION ("EQ defaults and ranges")
+    SECTION ("EQ defaults and ranges (v0.2.0 re-anchored default frequencies)")
     {
         checkBoolDefault (apvts, ParamIDs::eqEnabled, false);
 
-        checkFloatDefault (apvts, ParamIDs::eqLowShelfFreq, 100.0f);
+        checkFloatDefault (apvts, ParamIDs::eqLowShelfFreq, 80.0f);
         checkFloatDefault (apvts, ParamIDs::eqLowShelfGain, 0.0f);
         checkFloatDefault (apvts, ParamIDs::eqPeak1Freq, 500.0f);
         checkFloatDefault (apvts, ParamIDs::eqPeak1Gain, 0.0f);
         checkFloatDefault (apvts, ParamIDs::eqPeak1Q, 0.7f);
-        checkFloatDefault (apvts, ParamIDs::eqPeak2Freq, 2500.0f);
+        checkFloatDefault (apvts, ParamIDs::eqPeak2Freq, 2800.0f);
         checkFloatDefault (apvts, ParamIDs::eqPeak2Gain, 0.0f);
         checkFloatDefault (apvts, ParamIDs::eqPeak2Q, 0.7f);
-        checkFloatDefault (apvts, ParamIDs::eqHighShelfFreq, 8000.0f);
+        checkFloatDefault (apvts, ParamIDs::eqHighShelfFreq, 5000.0f);
         checkFloatDefault (apvts, ParamIDs::eqHighShelfGain, 0.0f);
 
         checkFloatRange (apvts, ParamIDs::eqLowShelfFreq, 40.0f, 400.0f);

@@ -7,19 +7,22 @@
 #include <array>
 #include <memory>
 
-// High-band distortion engine (issue #42): selectable voicing (Gnaw/Wool/
-// Razor) with drive, tone, and a clean/distorted blend, running the
-// nonlinear shaping stage oversampled to keep aliasing under control -
-// exactly the "oversampled nonlinearities to control aliasing" pattern this
-// suite uses for every distortion stage.
+// High-band distortion engine (issue #42; v0.2.0 promoted the pre-drive
+// highpass from a Razor-only quirk to a first-class, voicing-independent
+// "Tight" control - docs/design-brief.md's "High band" section, closing the
+// gap identified in the brief's "Why v1 falls short" #3): selectable voicing
+// (Gnaw/Wool/Razor) with a shared pre-drive Tight highpass, drive, tone, and
+// a clean/distorted blend, running the nonlinear shaping stage oversampled to
+// keep aliasing under control - exactly the "oversampled nonlinearities to
+// control aliasing" pattern this suite uses for every distortion stage.
 //
 // Topology per block, all real-time safe (no allocation once prepare() has
 // run):
 //   dry tap (pre-voicing high band) --------------------------+
 //                                                              |
-//   [Razor only] pre-highpass (base rate, tight low end) --+   |
-//   oversample up (juce::dsp::Oversampling<float>, JUCE     |   |
-//   8.0.14 juce_dsp/processors/juce_Oversampling.h) --------+   |
+//   Tight pre-highpass (base rate, all three voicings) -----+  |
+//   oversample up (juce::dsp::Oversampling<float>, JUCE     |  |
+//   8.0.14 juce_dsp/processors/juce_Oversampling.h) --------+  |
 //   per-sample waveshape (voicing-specific, drive-scaled)       |
 //   oversample down                                             |
 //   mid filter (peak, voicing-specific hump/scoop)               |
@@ -57,6 +60,15 @@ namespace cryp
         void setVoicing (VoicingType newVoicing) noexcept;
         void setDrive (float drive01) noexcept { driveAmount01 = juce::jlimit (0.0f, 1.0f, drive01); }
         void setTone (float tone01) noexcept { toneAmount01 = juce::jlimit (0.0f, 1.0f, tone01); }
+
+        // v0.2.0: "Tight" - the pre-drive highpass corner, now applied ahead
+        // of every voicing (was a Razor-only fixed 200 Hz internal constant
+        // in v1). 20-500 Hz per docs/design-brief.md; recomputed at control
+        // rate every process() call (like the tone filter), so it tracks
+        // automation without a per-sample coefficient-recompute cost and
+        // without needing an explicit state reset on every change.
+        void setTightHz (float newTightHz) noexcept { tightHz = juce::jlimit (20.0f, 500.0f, newTightHz); }
+
         void setWetMixProportion (float wetMixProportion01) noexcept { blendMixer.setWetMixProportion (wetMixProportion01); }
 
         // Integer sample latency contributed by the oversampling stage.
@@ -85,6 +97,15 @@ namespace cryp
         float driveAmount01 = 0.5f;
         float toneAmount01 = 0.5f;
 
+        // v0.2.0 default, matching docs/design-brief.md's sourced Tight
+        // default (100 Hz - the reference class's own documented pull-down
+        // floor). Only load-bearing for a Voicing instance never touched by
+        // setTightHz() (e.g. a standalone unit test) - PluginProcessor
+        // always calls setTightHz() from the highTightHz parameter's own
+        // ParameterLayout default before the first process() call in
+        // practice.
+        float tightHz = 100.0f;
+
         // Constructed in prepare() once the real channel count is known;
         // Oversampling's constructor itself allocates, so it must never be
         // (re)constructed from processBlock().
@@ -93,9 +114,10 @@ namespace cryp
 
         using Duplicator = juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>;
 
-        // Razor-only pre-emphasis highpass, run at the base sample rate
-        // before oversampling (linear filter, no aliasing concern, so no
-        // need to pay the oversampling cost for it).
+        // v0.2.0: "Tight" pre-drive highpass, now applied for every voicing
+        // (was Razor-only in v1), run at the base sample rate before
+        // oversampling (linear filter, no aliasing concern, so no need to
+        // pay the oversampling cost for it).
         Duplicator preHighPass { new juce::dsp::IIR::Coefficients<float> (1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f) };
 
         // Voicing-specific character filter (mid hump for Razor, mid scoop

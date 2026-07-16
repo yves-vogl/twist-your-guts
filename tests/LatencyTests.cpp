@@ -73,22 +73,27 @@ TEST_CASE ("Latency: re-preparing the processor recomputes latency deterministic
 
 TEST_CASE ("Latency: band-split-then-sum preserves magnitude flatness through the full processor", "[latency][dsp][crossover]")
 {
-    // Exercises the same flat-sum property as CrossoverTests.cpp, but end-
-    // to-end through CryptaAudioProcessor::processBlock() - i.e.
-    // including the low-band compensation delay line and the high-band
-    // voicing's own internal (DryWetMixer) dry-path delay - to confirm the
-    // #9/#42 latency-compensation seam doesn't perturb the #8 flat-sum
-    // guarantee. highBlend and lowCompMix are pulled to 0% (fully dry) so
-    // neither the high band's *voicing* character (deliberately non-
-    // transparent at its Gnaw/50% drive defaults) nor the low band's
-    // parallel compressor (deliberately non-transparent at its -18dB/4:1
-    // defaults, which a 0.5-amplitude probe sits well above) pollute a test
-    // that is specifically about the delay-compensation plumbing, not
-    // either stage's character - both dry paths still run through their
-    // respective latency-compensated DryWetMixers, so the plumbing is still
-    // fully exercised.
+    // Exercises the same flat-sum property as ThreeBandFlatSumTests.cpp, but
+    // end-to-end through CryptaAudioProcessor::processBlock() - i.e.
+    // including the low-band compensation delay line and the high band's
+    // own internal (DryWetMixer) dry-path delay - to confirm the #9/#42
+    // latency-compensation seam doesn't perturb the flat-sum guarantee.
+    // highBlend, lowCompMix, and midDrive are all pulled to 0%/transparent
+    // so neither the high band's *voicing* character (deliberately non-
+    // transparent at its Gnaw/50% drive defaults), the low band's parallel
+    // compressor (deliberately non-transparent at its -18dB/2:1 defaults,
+    // which a 0.5-amplitude probe sits well above), nor the mid band's
+    // staged drive (non-transparent at its 30% default) pollute a test that
+    // is specifically about the delay-compensation plumbing, not any single
+    // band's character - both dry paths still run through their respective
+    // latency-compensated DryWetMixers, so the plumbing is still fully
+    // exercised.
     constexpr double testSampleRate = 48000.0;
 
+    // Spans all three bands at the v0.2.0 defaults (Split Low 120 Hz, Split
+    // High 600 Hz): 60/150/250 Hz probe the low/mid bands, 600 Hz sits
+    // exactly at Split High (the hardest point for any crossover to keep
+    // flat), 2000/8000 Hz probe the high band.
     const double probeFrequenciesHz[] = { 60.0, 150.0, 250.0, 600.0, 2000.0, 8000.0 };
 
     for (const auto probeFrequencyHz : probeFrequenciesHz)
@@ -98,10 +103,13 @@ TEST_CASE ("Latency: band-split-then-sum preserves magnitude flatness through th
 
         auto* highBlendParam = processor.apvts.getParameter (ParamIDs::highBlend);
         auto* lowCompMixParam = processor.apvts.getParameter (ParamIDs::lowCompMix);
+        auto* midDriveParam = processor.apvts.getParameter (ParamIDs::midDrive);
         REQUIRE (highBlendParam != nullptr);
         REQUIRE (lowCompMixParam != nullptr);
+        REQUIRE (midDriveParam != nullptr);
         highBlendParam->setValueNotifyingHost (highBlendParam->convertTo0to1 (0.0f));
         lowCompMixParam->setValueNotifyingHost (lowCompMixParam->convertTo0to1 (0.0f));
+        midDriveParam->setValueNotifyingHost (midDriveParam->convertTo0to1 (0.0f));
 
         juce::AudioBuffer<float> buffer (2, testBlockSize);
         juce::MidiBuffer midi;

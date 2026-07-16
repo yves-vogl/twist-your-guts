@@ -46,29 +46,29 @@ TEST_CASE ("State round-trip preserves non-default parameter values", "[state]")
     CHECK (bypassParam->getValue() == Catch::Approx (savedBypassValue).margin (1e-6));
 }
 
-TEST_CASE ("State round-trip preserves non-default values of the full v1.0 parameter set", "[state][parameters]")
+TEST_CASE ("State round-trip preserves non-default values of the full v0.2.0 parameter set", "[state][parameters]")
 {
     CryptaAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
 
     // Exercise a representative float (log-skewed frequency), a bool, and
     // the AudioParameterChoice - one of each parameter kind declared by the
-    // full v1.0 layout, not just the M0 IO parameters.
-    auto* crossoverParam = processor.apvts.getParameter (ParamIDs::crossoverFreq);
+    // full v0.2.0 layout, not just the M0 IO parameters.
+    auto* splitHighParam = processor.apvts.getParameter (ParamIDs::splitHighHz);
     auto* gateEnabledParam = processor.apvts.getParameter (ParamIDs::gateEnabled);
     auto* voicingParam = processor.apvts.getParameter (ParamIDs::highVoicing);
 
-    REQUIRE (crossoverParam != nullptr);
+    REQUIRE (splitHighParam != nullptr);
     REQUIRE (gateEnabledParam != nullptr);
     REQUIRE (voicingParam != nullptr);
 
-    crossoverParam->setValueNotifyingHost (crossoverParam->convertTo0to1 (400.0f));
+    splitHighParam->setValueNotifyingHost (splitHighParam->convertTo0to1 (900.0f));
     gateEnabledParam->setValueNotifyingHost (1.0f);
     // "Razor" is index 2 of {Gnaw, Wool, Razor}; normalise via the choice
     // parameter's own range so this doesn't hardcode the 0-1 step size.
     voicingParam->setValueNotifyingHost (voicingParam->convertTo0to1 (2.0f));
 
-    const auto savedCrossoverValue = crossoverParam->getValue();
+    const auto savedSplitHighValue = splitHighParam->getValue();
     const auto savedGateEnabledValue = gateEnabledParam->getValue();
     const auto savedVoicingValue = voicingParam->getValue();
 
@@ -78,17 +78,17 @@ TEST_CASE ("State round-trip preserves non-default values of the full v1.0 param
 
     // Reset back to defaults before restoring, so the round-trip assertion
     // below can't pass by accident.
-    crossoverParam->setValueNotifyingHost (crossoverParam->getDefaultValue());
+    splitHighParam->setValueNotifyingHost (splitHighParam->getDefaultValue());
     gateEnabledParam->setValueNotifyingHost (gateEnabledParam->getDefaultValue());
     voicingParam->setValueNotifyingHost (voicingParam->getDefaultValue());
 
-    REQUIRE (crossoverParam->getValue() != Catch::Approx (savedCrossoverValue));
+    REQUIRE (splitHighParam->getValue() != Catch::Approx (savedSplitHighValue));
     REQUIRE (gateEnabledParam->getValue() != Catch::Approx (savedGateEnabledValue));
     REQUIRE (voicingParam->getValue() != Catch::Approx (savedVoicingValue));
 
     processor.setStateInformation (savedState.getData(), static_cast<int> (savedState.getSize()));
 
-    CHECK (crossoverParam->getValue() == Catch::Approx (savedCrossoverValue).margin (1e-6));
+    CHECK (splitHighParam->getValue() == Catch::Approx (savedSplitHighValue).margin (1e-6));
     CHECK (gateEnabledParam->getValue() == Catch::Approx (savedGateEnabledValue).margin (1e-6));
     CHECK (voicingParam->getValue() == Catch::Approx (savedVoicingValue).margin (1e-6));
 }

@@ -1,0 +1,17 @@
+{
+    "format": "basilica-preset-1",
+    "plugin": "com.yvesvogl.crypta",
+    "pluginVersion": "0.2.0",
+    "name": "Cab-Colored Grind",
+    "category": "Bass",
+    "parameters": {
+        "splitLowHz": 120.0,
+        "splitHighHz": 600.0,
+        "midDrive": 35.0,
+        "highTightHz": 100.0,
+        "highVoicing": 1.0,
+        "highDrive": 60.0,
+        "irEnabled": 1.0,
+        "irMix": 70.0
+    }
+}

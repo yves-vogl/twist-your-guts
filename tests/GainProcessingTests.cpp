@@ -28,20 +28,27 @@ namespace
     // voicing permanently into the signal path, the plugin is no longer
     // level-transparent at its *default* parameters (lowCompMix defaults to
     // 100% wet with a -18dB threshold, and highBlend defaults to 100% wet
-    // Gnaw hard-clip distortion) - that's by design, not a regression. These
+    // Gnaw hard-clip distortion) - that's by design, not a regression. v0.2.0
+    // adds a Mid band with a non-zero default Drive (30%) too - the
+    // testFrequencyHz probe below (1000 Hz) sits above Split High's own
+    // 600 Hz default so it never excites the Mid band regardless, but
+    // midDrive is neutralised anyway for consistency/future-proofing. These
     // pure gain-staging tests are about input/output trim math, not
-    // compressor/voicing character (which get their own dedicated tests in
-    // ParallelCompressorTests.cpp/VoicingTests.cpp), so they pull both
-    // stages' blend controls to 0% (fully dry) to isolate the gain-staging
-    // path being tested.
+    // compressor/voicing/drive character (which get their own dedicated
+    // tests in ParallelCompressorTests.cpp/VoicingTests.cpp/MidBandTests.cpp),
+    // so they pull every band's blend/drive controls to 0% (fully dry/
+    // transparent) to isolate the gain-staging path being tested.
     void neutralizeDynamicsAndVoicing (CryptaAudioProcessor& processor)
     {
         auto* lowCompMixParam = processor.apvts.getParameter (ParamIDs::lowCompMix);
+        auto* midDriveParam = processor.apvts.getParameter (ParamIDs::midDrive);
         auto* highBlendParam = processor.apvts.getParameter (ParamIDs::highBlend);
         REQUIRE (lowCompMixParam != nullptr);
+        REQUIRE (midDriveParam != nullptr);
         REQUIRE (highBlendParam != nullptr);
 
         lowCompMixParam->setValueNotifyingHost (lowCompMixParam->convertTo0to1 (0.0f));
+        midDriveParam->setValueNotifyingHost (midDriveParam->convertTo0to1 (0.0f));
         highBlendParam->setValueNotifyingHost (highBlendParam->convertTo0to1 (0.0f));
     }
 }

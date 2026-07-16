@@ -1,0 +1,19 @@
+{
+    "format": "basilica-preset-1",
+    "plugin": "com.yvesvogl.crypta",
+    "pluginVersion": "0.2.0",
+    "name": "Sub Lock",
+    "category": "Bass",
+    "parameters": {
+        "splitLowHz": 90.0,
+        "splitHighHz": 500.0,
+        "lowCompRatio": 3.0,
+        "lowCompAttack": 3.0,
+        "lowCompRelease": 6.0,
+        "lowCompMakeup": 2.0,
+        "midDrive": 15.0,
+        "highTightHz": 150.0,
+        "highVoicing": 2.0,
+        "highDrive": 35.0
+    }
+}

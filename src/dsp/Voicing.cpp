@@ -22,10 +22,12 @@ namespace
     constexpr float woolMidFreqHz = 500.0f, woolMidGainDb = -6.0f, woolMidQ = 0.9f;   // mid scoop
     constexpr float razorMidFreqHz = 900.0f, razorMidGainDb = 5.0f, razorMidQ = 1.0f; // mid hump
 
-    // Razor's pre-clip highpass: keeps the fundamental out of the shaper so
-    // the low end stays tight instead of flabby.
-    constexpr float razorPreHighPassHz = 200.0f;
-    constexpr float razorPreHighPassQ = 0.7071f;
+    // v0.2.0: "Tight" pre-clip highpass Q, shared by all three voicings (was
+    // Razor-only in v1) - keeps the fundamental out of the shaper so the low
+    // end stays tight instead of flabby. The corner frequency itself is now
+    // the voicing-independent, user-adjustable `tightHz` member (see
+    // Voicing.h's setTightHz()), not a fixed constant.
+    constexpr float tightHighPassQ = 0.7071f;
 
     // highTone sweep range.
     constexpr float minToneHz = 700.0f;
@@ -98,36 +100,38 @@ namespace cryp
         updateMidFilterCoefficients();
 
         // Issue #57: avoid carrying over stale filter state from the
-        // previous voicing into the freshly-swapped coefficients above - the
-        // same reasoning as the Razor-only preHighPass reset just below, but
-        // unconditional since midFilter is live for every voicing (not just
-        // Razor).
+        // previous voicing into the freshly-swapped mid-filter coefficients
+        // above - midFilter is live for every voicing, and each voicing's
+        // coefficients differ (hump vs. scoop vs. neutral), so a coefficient
+        // jump without a state reset would ring a spurious transient.
+        //
+        // preHighPass (the "Tight" control) deliberately does NOT get reset
+        // here as of v0.2.0: it is now voicing-independent (its coefficients
+        // depend only on tightHz, not on which voicing is selected - see
+        // Voicing.h's class docs), so switching voicings never changes its
+        // coefficients and there is nothing to guard against.
         midFilter.reset();
-
-        if (voicing == VoicingType::razor)
-        {
-            updatePreHighPassCoefficients();
-            // Avoid carrying over stale filter state from a previous Razor
-            // session (or silence) into the newly (re)activated pre-HPF.
-            preHighPass.reset();
-        }
     }
 
     void Voicing::process (juce::dsp::AudioBlock<float>& block) noexcept
     {
         jassert (oversampling != nullptr);
 
-        // Control-rate refresh: highTone is read fresh every host block by
-        // the processor and forwarded via setTone(), so recomputing the
-        // tone filter's (zero-allocation, see RealtimeCoefficients.h)
-        // coefficients once per block keeps it tracking automation without
-        // per-sample coefficient-recompute cost.
+        // Control-rate refresh: highTone/highTightHz are read fresh every
+        // host block by the processor and forwarded via setTone()/
+        // setTightHz(), so recomputing these filters' (zero-allocation, see
+        // RealtimeCoefficients.h) coefficients once per block keeps them
+        // tracking automation without a per-sample coefficient-recompute
+        // cost.
         updateToneFilterCoefficients();
+        updatePreHighPassCoefficients();
 
         blendMixer.pushDrySamples (juce::dsp::AudioBlock<const float> (block));
 
-        if (voicing == VoicingType::razor)
-            preHighPass.process (juce::dsp::ProcessContextReplacing<float> (block));
+        // v0.2.0: Tight now applies ahead of every voicing (was Razor-only
+        // in v1) - see Voicing.h's class docs and docs/design-brief.md's
+        // "High band" section.
+        preHighPass.process (juce::dsp::ProcessContextReplacing<float> (block));
 
         auto upBlock = oversampling->processSamplesUp (juce::dsp::AudioBlock<const float> (block));
 
@@ -218,7 +222,7 @@ namespace cryp
 
     void Voicing::updatePreHighPassCoefficients() noexcept
     {
-        const auto raw = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (sampleRate, razorPreHighPassHz, razorPreHighPassQ);
+        const auto raw = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (sampleRate, tightHz, tightHighPassQ);
         applyBiquadCoefficients (*preHighPass.state, raw);
     }
 }

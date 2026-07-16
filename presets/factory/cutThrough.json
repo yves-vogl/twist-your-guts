@@ -1,0 +1,16 @@
+{
+    "format": "basilica-preset-1",
+    "plugin": "com.yvesvogl.crypta",
+    "pluginVersion": "0.2.0",
+    "name": "Cut Through",
+    "category": "Bass",
+    "parameters": {
+        "splitLowHz": 180.0,
+        "splitHighHz": 900.0,
+        "lowCompRatio": 2.0,
+        "midDrive": 40.0,
+        "highTightHz": 130.0,
+        "highVoicing": 2.0,
+        "highDrive": 55.0
+    }
+}
