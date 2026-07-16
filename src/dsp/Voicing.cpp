@@ -97,6 +97,13 @@ namespace cryp
 
         updateMidFilterCoefficients();
 
+        // Issue #57: avoid carrying over stale filter state from the
+        // previous voicing into the freshly-swapped coefficients above - the
+        // same reasoning as the Razor-only preHighPass reset just below, but
+        // unconditional since midFilter is live for every voicing (not just
+        // Razor).
+        midFilter.reset();
+
         if (voicing == VoicingType::razor)
         {
             updatePreHighPassCoefficients();

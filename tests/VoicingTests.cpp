@@ -169,6 +169,93 @@ TEST_CASE ("Voicing: no NaN/Inf across a denormal-range sweep for every voicing"
     }
 }
 
+namespace
+{
+    // Excites Wool's mid-scoop filter (500Hz/-6dB/Q0.9) at `exciteFreqHz`,
+    // switches to Razor (900Hz/+5dB/Q1.0 - the largest mid-filter
+    // coefficient jump available in the voicing set) and returns the RMS of
+    // a short window of the following silence, skipping past the
+    // oversampling stage's own (finite, unrelated) FIR flush tail.
+    //
+    // Processes in `numSamples`-sized chunks (the block size makeSpec()
+    // prepared) rather than one oversized block, since
+    // Oversampling::processSamplesUp() asserts on blocks larger than what
+    // initProcessing() was prepared for.
+    double exciteThenMeasurePostSwitchSilence (double exciteFreqHz)
+    {
+        cryp::Voicing voicing;
+        voicing.prepare (makeSpec (1), 1.0f); // fully wet, so midFilter fully reaches the output
+        voicing.setVoicing (cryp::VoicingType::wool);
+        voicing.setDrive (0.0f); // minimal waveshaping so the mid filter dominates the response
+        voicing.setTone (1.0f);  // tone filter's pole sits near Nyquist, so its own state decays near-instantly
+
+        constexpr int numExciteBlocks = 4;
+
+        for (int i = 0; i < numExciteBlocks; ++i)
+        {
+            juce::AudioBuffer<float> excite (1, numSamples);
+            TestHelpers::fillWithSine (excite, testSampleRate, exciteFreqHz, 0.9f, static_cast<juce::int64> (i) * numSamples);
+            juce::dsp::AudioBlock<float> exciteBlock (excite);
+            voicing.process (exciteBlock);
+        }
+
+        // Switch to Razor: a substantial mid-filter coefficient jump under
+        // whatever mid-filter state the excite phase built up in Wool.
+        voicing.setVoicing (cryp::VoicingType::razor);
+
+        juce::AudioBuffer<float> silence (1, numSamples);
+        silence.clear();
+        juce::dsp::AudioBlock<float> silenceBlock (silence);
+        voicing.process (silenceBlock);
+
+        const auto latency = juce::jmax (1, voicing.getLatencySamples());
+        const auto skipSamples = juce::jlimit (0, numSamples / 2, 3 * latency);
+        const auto windowLength = juce::jmin (numSamples - skipSamples, 4 * latency);
+
+        juce::AudioBuffer<float> measured (1, windowLength);
+        measured.copyFrom (0, 0, silence, 0, skipSamples, windowLength);
+
+        return TestHelpers::rms (measured);
+    }
+}
+
+TEST_CASE ("Voicing: setVoicing() resets midFilter state instead of ringing a coefficient-jump transient into silence", "[voicing][dsp]")
+{
+    // Issue #57: setVoicing() unconditionally recomputes midFilter's
+    // coefficients on every voicing change but (unlike preHighPass's
+    // explicit Razor-switch handling) never reset its state - a stale
+    // biquad delay-line combined with freshly-swapped coefficients rings a
+    // spurious transient.
+    //
+    // A raw "silence right after the switch" magnitude check can't isolate
+    // this cleanly: the oversampling stage's own FIR flush tail from the
+    // excite-to-silence discontinuity, combined with Razor's mid filter
+    // being a +5dB *boost* (vs Wool's -6dB *cut*), both legitimately and
+    // unavoidably still leave some residual regardless of whether midFilter
+    // itself is reset - that residual would swamp a fixed threshold either
+    // way. Instead, this compares the residual left by exciting Wool's mid
+    // filter *on resonance* (500Hz, its own center frequency - maximises
+    // energy stored in midFilter's state specifically) against the residual
+    // left by exciting *off resonance* (20Hz, far below any voicing's mid
+    // filter - minimises midFilter's own contribution while leaving the
+    // shared oversampling-FIR-tail/gain-difference confound roughly the
+    // same, since that part depends mostly on excite amplitude, not
+    // frequency). The on/off-resonance *ratio* isolates midFilter's own
+    // stale-state contribution from those confounds: with midFilter
+    // properly reset on every switch (this fix), that ratio is small and
+    // stable; left unreset, the on-resonance case rings measurably harder
+    // than the off-resonance case, inflating the ratio.
+    const auto onResonanceRms = exciteThenMeasurePostSwitchSilence (500.0);  // Wool's own mid-filter center frequency
+    const auto offResonanceRms = exciteThenMeasurePostSwitchSilence (20.0); // far below every voicing's mid filter
+
+    REQUIRE (offResonanceRms > 0.0);
+
+    const auto ratio = onResonanceRms / offResonanceRms;
+
+    INFO ("onResonanceRms = " << onResonanceRms << ", offResonanceRms = " << offResonanceRms << ", ratio = " << ratio);
+    CHECK (ratio < 2.35);
+}
+
 TEST_CASE ("Voicing: switching voicing mid-stream never produces NaN/Inf", "[voicing][dsp][robustness]")
 {
     cryp::Voicing voicing;
